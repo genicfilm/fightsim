@@ -667,6 +667,67 @@ const emptyEvent = await page.evaluate(() => ({
 ok("an all-invalid event clears the previous card instead of retaining stale data",
    emptyEvent.rows === 0 && !emptyEvent.shown && !emptyEvent.actions,
    JSON.stringify(emptyEvent));
+
+/* Grading a committed receipt. Without this the ledger loop had no closing
+   step: a receipt could be written and committed, and nothing could read it
+   back. Grading must score the posteriors IN THE RECEIPT, not a fresh run. */
+await page.fill("#ename", "TEST CARD");
+await page.fill("#ecard", "Jon Jones vs Stipe Miocic\nAlex Pereira vs Israel Adesanya\nKorean Zombie vs Max Holloway");
+await page.click("#erun");
+await page.waitForTimeout(1200);
+const committed = JSON.parse(await page.evaluate(() => receipt()));
+committed.bouts[0].p_a = 0.99;           // a posterior no rebuild would produce
+await page.fill("#ecard", JSON.stringify(committed));
+await page.click("#erun");
+await page.waitForTimeout(400);
+ok("a pasted receipt is graded, not re-run",
+   await page.evaluate(() => EV.graded && Math.abs(EV.rows[0].p - 0.99) < 1e-9),
+   await page.evaluate(() => `graded=${EV.graded} p=${EV.rows[0].p}`));
+ok("grading restores the event name and bout count",
+   await page.evaluate(() => EV.name === "TEST CARD" && EV.rows.length === 3));
+// .erow is not #eout's first child — the header and the hint precede it
+const row0 = page.locator("#eout .erow").first();
+await row0.locator(".ea").click();
+const g1 = await page.evaluate(() => EV.rows[0].winner);
+await row0.locator(".ea").click();
+const g2 = await page.evaluate(() => EV.rows[0].winner);
+await row0.locator(".ea").click();
+const g3 = await page.evaluate(() => EV.rows[0].winner);
+ok("clicking a corner cycles winner, no-contest, ungraded",
+   g1 === (await page.evaluate(() => EV.rows[0].a)) && g2 === "NC" && g3 === null,
+   `${g1} / ${g2} / ${g3}`);
+await row0.locator(".eb").click();
+ok("the other corner wins in one click",
+   (await page.evaluate(() => EV.rows[0].winner)) === (await page.evaluate(() => EV.rows[0].b)));
+// p_a was tampered to 0.99 toward corner A, so a B win has to read as a miss
+ok("a graded miss is scored against the committed posterior",
+   await page.evaluate(() => !hitRow(EV.rows[0])) &&
+   (await row0.locator(".gmiss").count()) === 1);
+ok("the graded receipt carries the winners back out",
+   await page.evaluate(() => JSON.parse(receipt()).bouts[0].winner === EV.rows[0].b));
+// The stamp IS the pre-registration. Restamping on the way out would move the
+// commitment to after the results were known.
+ok("grading preserves the original stamp and dates the grading separately",
+   await page.evaluate((s) => {
+     const r = JSON.parse(receipt());
+     return r.stamped === s && !!r.graded_at && r.graded_at >= s;
+   }, committed.stamped),
+   await page.evaluate(() => JSON.parse(receipt()).stamped));
+ok("the graded card renders",
+   await page.evaluate(() => { const c = drawEvent(); return c.width === 2160 && c.height > 1000; }));
+// The regression that motivated this: a second `record()` hoisted over
+// record(name) and blanked MODEL HISTORY while every DOM assertion stayed green.
+ok("grading did not shadow the fighter record lookup",
+   await page.evaluate(() => {
+     const r = record("Jon Jones");
+     return !!r && typeof r.n === "number" && r.n > 0;
+   }));
+await page.fill("#ecard", '{"event":"BROKEN"}');
+await page.click("#erun");
+await page.waitForTimeout(200);
+ok("a receipt with no bouts is declined, not silently accepted",
+   await page.$eval("#ewarn", (e) => e.classList.contains("on")));
+
 await page.click("#eclose");
 ok("Escape/Close dismisses it", !(await page.$eval("#evpanel", (e) => e.classList.contains("on"))));
 

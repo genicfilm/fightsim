@@ -19,6 +19,13 @@ refusals marked, plus a JSON receipt for `ledger/`. That pairing — commit the
 receipt before the card, grade it after — is the part of this project no
 competitor has, and the reason the refusals have to stay honest.
 
+**Both halves live in that one box.** Paste bouts to read a card; paste a
+committed receipt to grade it. Grading reads the posteriors *out of the receipt*
+rather than re-running the model, and preserves `stamped` while adding
+`graded_at`. Neither rule is cosmetic: re-running would score a rebuilt
+`data.json` instead of what was committed, and restamping would move the
+commitment to after the results were known.
+
 ---
 
 ## Build, run, test
@@ -199,6 +206,7 @@ If you need to rename an id, update `fightsim/index.html` and `CONTRACT` in
 | Method screen | `intro` `ienter` `method` |
 | Masthead | `nf` `nfeat` |
 | Entry | `ia` `ib` `aca` `acb` `sa` `sb` `va` `vb` `go` `warn` |
+| YOUR READ | `pick` `pika` `pikn` `pikb` `pickres` |
 | Tale of the tape | `tape` `pna` `pva` `pda` `pnb` `pvb` `pdb` `cw` `rows` `hex` `fpc` |
 | Stage | `stage` `na` `nb` `wgap` |
 | Pipeline | `pstep` `plabel` `pnum` `prail` `beam` |

@@ -474,6 +474,7 @@ input::placeholder{color:#3a3a44}
 .efield label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
   color:var(--grey);margin-bottom:6px}
 .efield label b{color:var(--ink);font-weight:400}
+.efield label .elab2{display:inline-block;margin-top:4px;color:#5c5c66;letter-spacing:.12em}
 .efield input,.efield textarea{width:100%;background:var(--surf-3);border:1px solid var(--line);
   color:var(--ink);font-family:Barlow,system-ui,sans-serif;font-size:15px;padding:10px 12px;
   border-radius:2px;outline:none;resize:vertical}
@@ -498,6 +499,22 @@ input::placeholder{color:#3a3a44}
 .erow.dec .ep{color:var(--grey);font-size:10.5px;letter-spacing:.1em}
 .ehead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;
   font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;color:var(--grey)}
+/* ---- grading a committed receipt ----
+   Scoped under .eout / .erow.gr throughout. Bare class names have cost this
+   file two silent layout bugs; every rule below names its container. */
+.eout .ghint{font-family:var(--mono);font-size:10px;line-height:1.7;letter-spacing:.1em;
+  color:#6c6c76;margin:-2px 0 12px}
+.erow.gr .ea,.erow.gr .eb{cursor:pointer;color:#8a8a94}
+.erow.gr .ea:hover,.erow.gr .eb:hover{color:var(--ink)}
+.erow.gr .ea.won{color:var(--blue);font-weight:600}
+.erow.gr .eb.won{color:var(--red);font-weight:600}
+.erow.gr .ep i{font-style:normal;font-family:var(--mono);font-size:12px;letter-spacing:.1em}
+.erow.gr .ep .ghit{color:#3ddc7f}
+.erow.gr .ep .gmiss{color:var(--red)}
+.erow.gr .ep .gnc,.erow.gr .ep .gopen{color:#5c5c66;font-size:9.5px}
+.eout .grec{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--grey);line-height:1.8}
+.eout .grec b{font-family:Anton;font-size:17px;letter-spacing:.02em;color:var(--ink);font-weight:400}
 .eacts{margin-top:22px;display:none;gap:10px;align-items:center;flex-wrap:wrap}
 .eacts.on{display:flex}
 .eacts .save{margin:0;width:auto;padding:0 22px}
@@ -979,7 +996,8 @@ input::placeholder{color:#3a3a44}
              placeholder="UFC 330 · PHILADELPHIA · 15 AUG 2026">
     </div>
     <div class="efield">
-      <label for="ecard">BOUTS — ONE PER LINE, <b>A vs B</b>, TOP OF THE CARD FIRST</label>
+      <label for="ecard">BOUTS — ONE PER LINE, <b>A vs B</b>, TOP OF THE CARD FIRST<br>
+        <span class="elab2">…OR PASTE A COMMITTED RECEIPT TO GRADE IT AFTER THE CARD</span></label>
       <textarea id="ecard" spellcheck="false" rows="7"
         placeholder="Islam Makhachev vs Ian Machado Garry&#10;Alex Pereira vs Magomed Ankalaev&#10;Sean O'Malley vs Merab Dvalishvili"></textarea>
     </div>
@@ -2808,8 +2826,42 @@ $('copy').onclick=async()=>{
    Versions are LATEST here, not prime: an upcoming card is fought by whoever
    these people are now. The single-matchup screen defaults to prime because it
    is a fantasy tool; this one is not. */
-const EV={rows:[],name:'',dec:0};
+const EV={rows:[],name:'',dec:0,graded:false,stamped:null};
 const latestIdx=n=>FI[n].v.length-1;
+
+/* Grading a committed receipt. This is the half the ledger was always missing:
+   a receipt could be written and committed, and then nothing here could ever
+   read it back. Grading reads the posteriors OUT OF THE RECEIPT rather than
+   re-running the model — the point is to score what was actually committed
+   before the card, and a rebuilt data.json would quietly score something else. */
+function gradeReceipt(j){
+  if(!j||!Array.isArray(j.bouts)||!j.bouts.length) throw new Error('NO BOUTS IN THIS RECEIPT');
+  EV.name=String(j.event||'UNTITLED CARD');
+  EV.stamped=j.stamped||null;
+  EV.graded=true;
+  EV.rows=j.bouts.map(b=>{
+    const p=+b.p_a;
+    if(!isFinite(p)) throw new Error('A BOUT HAS NO POSTERIOR');
+    return {a:String(b.a),b:String(b.b),p,
+      conf:b.confidence!=null?+b.confidence:Math.max(p,1-p),
+      aw:b.rollouts?+b.rollouts.a:null,bw:b.rollouts?+b.rollouts.b:null,
+      declined:!!b.refused,lean:b.lean||null,prior:+b.weight_prior||0,
+      winner:b.winner==null?null:String(b.winner)};
+  });
+  EV.dec=EV.rows.filter(r=>r.declined).length;
+}
+// A bout is right when the side the model gave more mass to actually won. The
+// same test grades refusals — that is the only way to check they were coin flips.
+const hitRow=r=>r.winner===(r.p>=0.5?r.a:r.b);
+// evRecord, not record — record(name) is already the fighter held-out lookup
+// above, and a bare `record` here hoisted straight over it and blanked the
+// MODEL HISTORY panel while every DOM assertion stayed green.
+function evRecord(){
+  const g=EV.rows.filter(r=>r.winner&&r.winner!=='NC');
+  const called=g.filter(r=>!r.declined), ref=g.filter(r=>r.declined);
+  return {graded:g.length,called:called.length,calledHit:called.filter(hitRow).length,
+          ref:ref.length,refHit:ref.filter(hitRow).length};
+}
 
 function parseBouts(text){
   const out=[];
@@ -2828,7 +2880,26 @@ function parseBouts(text){
 }
 
 function runEvent(){
-  const parsed=parseBouts($('ecard').value);
+  const raw=$('ecard').value.trim();
+  const w0=$('ewarn');
+  // One input, two meanings. A pasted receipt is unmistakably JSON, so nothing
+  // has to be explained or switched: paste a card to read it, paste a receipt
+  // to grade it.
+  if(raw.startsWith('{')){
+    try{
+      gradeReceipt(JSON.parse(raw));
+      w0.classList.remove('on');
+      $('ename').value=EV.name;
+      renderEvent();
+    }catch(e){
+      w0.classList.add('on');
+      w0.innerHTML=`DECLINED — THAT IS NOT A RECEIPT THIS CAN GRADE<br>`
+        +`<span style="color:var(--grey)">${String(e.message||e).toUpperCase().replace(/</g,'&lt;')}</span>`;
+    }
+    return;
+  }
+  EV.graded=false; EV.stamped=null;
+  const parsed=parseBouts(raw);
   const bad=parsed.filter(p=>p.err), good=parsed.filter(p=>!p.err);
   const w=$('ewarn');
   if(bad.length){
@@ -2837,7 +2908,7 @@ function runEvent(){
       p.raw.replace(/</g,'&lt;')}</span>`).join('<br>');
   } else w.classList.remove('on');
   if(!good.length){
-    EV.rows=[]; EV.name=''; EV.dec=0;
+    EV.rows=[]; EV.name=''; EV.dec=0; EV.graded=false;
     $('eout').innerHTML=''; $('eout').classList.remove('on');
     $('eacts').classList.remove('on'); $('esaved').textContent='';
     return;
@@ -2853,20 +2924,53 @@ function runEvent(){
             prior:D.prior, gap:D.gap};
   });
   EV.dec=EV.rows.filter(r=>r.declined).length;
-
-  $('eout').innerHTML=
-    `<div class="ehead"><span>${EV.rows.length} BOUTS · LATEST CAREER STATE</span>`
-    +`<span>REFUSES ${EV.dec} OF ${EV.rows.length}</span></div>`
-    +EV.rows.map(r=>{
-      const pa=Math.round(r.p*100);
-      return `<div class="erow${r.declined?' dec':''}">`
-        +`<span class="ea">${r.a}</span>`
-        +`<span class="ebar"><i style="width:${pa}%"></i><u style="width:${100-pa}%"></u></span>`
-        +`<span class="eb">${r.b}</span>`
-        +`<span class="ep">${r.declined?'REFUSED':(r.conf).toFixed(2)+' '+(r.p>=.5?'←':'→')}</span></div>`;
-    }).join('');
-  $('eout').classList.add('on'); $('eacts').classList.add('on'); $('esaved').textContent='';
+  renderEvent();
 }
+
+function renderEvent(){
+  const G=EV.graded, rec=G?evRecord():null;
+  const head=G
+    ? `<div class="ehead"><span>GRADING A COMMITTED RECEIPT${
+        EV.stamped?` · STAMPED ${esc(EV.stamped.slice(0,10))}`:''}</span>`
+      +`<span>${rec.graded} OF ${EV.rows.length} GRADED</span></div>`
+      +`<div class="ghint">CLICK WHOEVER ACTUALLY WON. CLICK AGAIN FOR A DRAW OR NO-CONTEST, `
+      +`WHICH IS EXCLUDED FROM SCORING.</div>`
+    : `<div class="ehead"><span>${EV.rows.length} BOUTS · LATEST CAREER STATE</span>`
+      +`<span>REFUSES ${EV.dec} OF ${EV.rows.length}</span></div>`;
+
+  $('eout').innerHTML=head+EV.rows.map((r,i)=>{
+    const pa=Math.round(r.p*100);
+    const won=w=>G&&r.winner===r[w]?' won':'';
+    const grade=!G?(r.declined?'REFUSED':r.conf.toFixed(2)+' '+(r.p>=.5?'←':'→'))
+      : r.winner==='NC' ? '<i class="gnc">NC</i>'
+      : !r.winner ? '<i class="gopen">UNGRADED</i>'
+      : hitRow(r) ? '<i class="ghit">✓</i>' : '<i class="gmiss">✗</i>';
+    return `<div class="erow${r.declined?' dec':''}${G?' gr':''}">`
+      +`<span class="ea${won('a')}"${G?` data-i="${i}" data-w="a"`:''}>${esc(r.a)}</span>`
+      +`<span class="ebar"><i style="width:${pa}%"></i><u style="width:${100-pa}%"></u></span>`
+      +`<span class="eb${won('b')}"${G?` data-i="${i}" data-w="b"`:''}>${esc(r.b)}</span>`
+      +`<span class="ep">${grade}</span></div>`;
+  }).join('')
+  +(G&&rec.graded?`<div class="grec">`
+    +`<b>${rec.calledHit} OF ${rec.called}</b> CALLED, CORRECT`
+    +(rec.ref?` · <b>${rec.refHit} OF ${rec.ref}</b> REFUSED, WHICH IT CLAIMED NO EDGE ON`:'')
+    +`</div>`:'');
+
+  $('eout').classList.add('on'); $('eacts').classList.add('on'); $('esaved').textContent='';
+  $('esave').textContent=G?'EXPORT THE GRADED CARD':'EXPORT THE SCORECARD';
+  $('ejson').textContent=G?'Copy the graded receipt':'Copy the receipt';
+}
+
+// Delegated so it survives every re-render. Cycles winner -> NC -> ungraded, so
+// a mis-click is always one more click from correct.
+$('eout').onclick=e=>{
+  const t=e.target.closest('[data-w]'); if(!t||!EV.graded) return;
+  const r=EV.rows[+t.dataset.i], name=r[t.dataset.w];
+  // same side again -> draw/no-contest -> ungraded -> that side again.
+  // The other side always just wins, so switching a wrong call is one click.
+  r.winner = r.winner===name ? 'NC' : r.winner==='NC' ? null : name;
+  renderEvent();
+};
 
 /* The scorecard. Height is derived from the bout count, so a 5-fight prelim
    card and a 13-fight PPV both come out correctly proportioned. */
@@ -2907,21 +3011,27 @@ function drawEvent(){
     if(tag){ x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText(tag,tx+w+22,y-1); }
   };
 
-  mark(34,96,'THE WHOLE CARD');
+  const G=EV.graded, rec=G?evRecord():null;
+  mark(34,96,G?'GRADED AGAINST THE COMMITTED RECEIPT':'THE WHOLE CARD');
   x.font=`${fit(x,EV.name.toUpperCase(),'Anton',W-M*2,44,20)}px Anton`;
   x.fillStyle=INK; x.fillText(EV.name.toUpperCase(),M,168);
   x.font='600 15px Barlow'; x.fillStyle=GREY;
-  x.fillText(`${rows.length} BOUTS · POSTERIOR PER FIGHT · LATEST CAREER STATE`,M,200);
+  x.fillText(G
+    ? `${rows.length} BOUTS · READ BEFORE THE CARD${EV.stamped?` · STAMPED ${EV.stamped.slice(0,10)}`:''} · GRADED AFTER`
+    : `${rows.length} BOUTS · POSTERIOR PER FIGHT · LATEST CAREER STATE`,M,200);
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,222); x.lineTo(W-M,222); x.stroke();
 
   const NW=250, BX=M+NW+18, BW=W-M*2-NW*2-36;
   rows.forEach((r,i)=>{
     const y=top+i*RH, cy=y+18;
     if(r.declined){ x.fillStyle='#101014'; x.fillRect(M-14,y-6,W-M*2+28,RH-10); }
+    // Graded: the fighter who actually won carries the corner colour and the
+    // loser recedes, so the result is legible before any of the arithmetic is.
+    const dimA=G&&r.winner&&r.winner!==r.a, dimB=G&&r.winner&&r.winner!==r.b;
     x.font='600 19px Barlow'; x.textAlign='right';
-    x.fillStyle=r.declined?'#b0b0b8':BL; x.fillText(r.a.toUpperCase(),M+NW,cy+6);
+    x.fillStyle=dimA?'#55555e':(r.declined&&!G?'#b0b0b8':BL); x.fillText(r.a.toUpperCase(),M+NW,cy+6);
     x.textAlign='left';
-    x.fillStyle=r.declined?'#b0b0b8':R; x.fillText(r.b.toUpperCase(),W-M-NW+36,cy+6);
+    x.fillStyle=dimB?'#55555e':(r.declined&&!G?'#b0b0b8':R); x.fillText(r.b.toUpperCase(),W-M-NW+36,cy+6);
 
     // the bar. A refused fight is drawn flat grey on purpose — the eye should
     // find the refusals before it finds anything else on this image.
@@ -2944,6 +3054,13 @@ function drawEvent(){
       x.fillStyle='#ffffff';
       x.fillText(`${Math.round(r.conf*100)}%`,BX+(r.p>=.5?pw/2:pw+(BW-pw)/2),cy+5);
     }
+    // the verdict mark, on the right margin, only once a result exists
+    if(G&&r.winner){
+      x.textAlign='right'; x.font='600 22px Barlow';
+      const nc=r.winner==='NC';
+      x.fillStyle=nc?'#5c5c66':hitRow(r)?'#3ddc7f':R;
+      x.fillText(nc?'NC':hitRow(r)?'✓':'✗',W-M+2,cy+8);
+    }
     x.textAlign='left';
     if(i<rows.length-1){
       x.strokeStyle='#141419'; x.beginPath();
@@ -2951,16 +3068,33 @@ function drawEvent(){
     }
   });
 
-  // the refusal count is the headline, because it is the thing nobody else prints
   const fy=top+rows.length*RH+34;
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,fy); x.lineTo(W-M,fy); x.stroke();
-  const big=`${EV.dec} OF ${rows.length}`;
-  x.font='46px Anton'; x.fillStyle=INK; x.fillText(big,M,fy+62);
-  const bw2=x.measureText(big).width;
-  x.font='600 20px Barlow'; x.fillStyle=GREY;
-  x.fillText('REFUSED — THE MODEL HAS NO EDGE ON THESE',M+bw2+20,fy+62);
-  x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
-  x.fillText(`WITHIN THE ${MET.N}-FIGHT HOLDOUT, THE ${MET.REFUSE}% BELOW ${MET.THR} REALISED ${MET.REFUSE_ACC}%. THAT IS WHY IT DECLINES.`,M,fy+92);
+  if(G&&rec.graded){
+    // Graded, the headline is the record — and the refusals get their own line,
+    // because a refusal that quietly outperforms means the threshold is wrong
+    // and this card is where anyone would see it.
+    const big=`${rec.calledHit} OF ${rec.called}`;
+    x.font='46px Anton'; x.fillStyle=INK; x.fillText(big,M,fy+62);
+    const bw2=x.measureText(big).width;
+    x.font='600 20px Barlow'; x.fillStyle=GREY;
+    x.fillText('CALLED, AND CORRECT',M+bw2+20,fy+62);
+    x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
+    x.fillText(rec.ref
+      ? `IT REFUSED ${rec.ref} MORE AND CLAIMED NO EDGE ON THEM; THOSE CAME OUT ${rec.refHit}–${rec.ref-rec.refHit}. `
+        +`HELD-OUT EXPECTATION: ${MET.CALL_ACC}% CALLED, ${MET.REFUSE_ACC}% REFUSED.`
+      : `HELD-OUT EXPECTATION ON CALLED FIGHTS: ${MET.CALL_ACC}%. THIS IS ONE CARD, NOT A RECORD.`,M,fy+92);
+  } else {
+    // ungraded: the refusal count is the headline, because it is the thing
+    // nobody else prints
+    const big=`${EV.dec} OF ${rows.length}`;
+    x.font='46px Anton'; x.fillStyle=INK; x.fillText(big,M,fy+62);
+    const bw2=x.measureText(big).width;
+    x.font='600 20px Barlow'; x.fillStyle=GREY;
+    x.fillText('REFUSED — THE MODEL HAS NO EDGE ON THESE',M+bw2+20,fy+62);
+    x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
+    x.fillText(`WITHIN THE ${MET.N}-FIGHT HOLDOUT, THE ${MET.REFUSE}% BELOW ${MET.THR} REALISED ${MET.REFUSE_ACC}%. THAT IS WHY IT DECLINES.`,M,fy+92);
+  }
 
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();
   mark(22,H-70,HOME.toUpperCase());
@@ -2988,7 +3122,11 @@ function drawEvent(){
 function receipt(){
   return JSON.stringify({
     event:EV.name,
-    stamped:new Date().toISOString(),
+    // The stamp is the pre-registration, so grading must PRESERVE it. Restamping
+    // on the way out would move the commitment to after the fights were known,
+    // which is the one thing this file exists to make impossible.
+    stamped:(EV.graded&&EV.stamped)?EV.stamped:new Date().toISOString(),
+    ...(EV.graded?{graded_at:new Date().toISOString()}:{}),
     // Credentials come from MET — the object npm test diffs against
     // tools/metrics.txt — never from literals. A retrain that shifts the
     // numbers must not ship receipts stamped with the old ones.
@@ -2998,7 +3136,10 @@ function receipt(){
     bouts:EV.rows.map(r=>({a:r.a,b:r.b,p_a:+r.p.toFixed(4),
       confidence:+r.conf.toFixed(4),lean:r.declined?null:r.lean,
       refused:r.declined,rollouts:{a:r.aw,b:r.bw},
-      weight_prior:+((r.prior||0).toFixed(2)),winner:null}))
+      // null until the card has happened. Grading fills it in, and the graded
+      // receipt goes back to ledger/ as a second commit — so the diff between
+      // the two commits is the whole audit trail.
+      weight_prior:+((r.prior||0).toFixed(2)),winner:r.winner||null}))
   },null,2);
 }
 
@@ -3016,7 +3157,7 @@ $('esave').onclick=async()=>{
   await document.fonts.ready;
   drawEvent().toBlob(bl=>{
     const u=URL.createObjectURL(bl), a=document.createElement('a');
-    a.href=u; a.download=`fightsim-${EV.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')
+    a.href=u; a.download=`fightsim-${EV.graded?'graded-':''}${EV.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')
       .replace(/^-|-$/g,'')||'card'}.jpg`;
     a.click(); URL.revokeObjectURL(u);
     $('esaved').textContent=`SAVED · ${(bl.size/1024|0)} KB`;
@@ -3024,7 +3165,10 @@ $('esave').onclick=async()=>{
 };
 $('ejson').onclick=async()=>{
   if(!EV.rows.length) return;
-  try{ await navigator.clipboard.writeText(receipt()); $('esaved').textContent='RECEIPT COPIED — COMMIT IT BEFORE THE CARD'; }
+  try{ await navigator.clipboard.writeText(receipt());
+       $('esaved').textContent=EV.graded
+         ? 'GRADED RECEIPT COPIED — COMMIT IT OVER THE ORIGINAL'
+         : 'RECEIPT COPIED — COMMIT IT BEFORE THE CARD'; }
   catch(e){ $('esaved').textContent='CLIPBOARD BLOCKED'; }
 };
 

@@ -10,8 +10,14 @@
  * Workflow, once per event:
  *   1. EVENT mode in the app -> "Copy the receipt"
  *   2. paste into ledger/ufc-330.json and COMMIT IT BEFORE THE FIGHTS
- *   3. after the card, fill in "winner" on each bout (exact index spelling,
- *      or "NC" for a no-contest/draw, which is excluded from scoring)
+ *      (then `npm run publish` — the timestamp only proves anything to someone
+ *      else once it is public)
+ *   3. after the card, paste that same receipt back into EVENT mode. It grades
+ *      instead of re-running: click whoever actually won, click again for a
+ *      draw/no-contest. "Copy the graded receipt" and overwrite the file — the
+ *      original `stamped` is preserved and a `graded_at` is added, so the diff
+ *      between the two commits is the audit trail. Winners can also be typed by
+ *      hand (exact index spelling, or "NC", which is excluded from scoring).
  *   4. node tools/ledger.mjs && commit
  *
  * A bout the model REFUSED is still graded, in its own column. That is

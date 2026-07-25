@@ -217,6 +217,17 @@ is fought by whoever these people are now.
 posterior, every refusal, `winner: null`. Commit it to `ledger/` **before** the
 card, so `git log` is the timestamp, then fill the winners in afterwards and run:
 
+**Grading is the other half, and it happens in the same box.** Paste a committed
+receipt back into EVENT mode and it grades instead of running: the posteriors
+come out of the receipt rather than a fresh model run, because the point is to
+score what was actually committed — a rebuilt `data.json` would quietly score
+something else. Click whoever won; click again for a draw or no-contest, which
+is excluded from scoring. The card redraws as the graded card, headlined with
+the record rather than the refusal count, and *Copy the graded receipt*
+preserves the original `stamped` and adds `graded_at`. Restamping on the way out
+would move the commitment to after the results were known, which is the one
+thing this file exists to make impossible.
+
 ```bash
 node tools/ledger.mjs        # regenerates ledger/README.md
 ```
