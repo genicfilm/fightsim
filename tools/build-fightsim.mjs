@@ -1,7 +1,7 @@
-// Bundles fightsim/index.html + data.json + fonts into one self-contained
-// FightSim.html that opens by double-clicking — no server, no localhost, no
-// WSL port forwarding. Fonts are inlined too, because Chrome blocks @font-face
-// over file:// even when the .ttf sits right next to the page.
+// Bundles fightsim/index.html + data.json + aliases.json + fonts into one
+// self-contained FightSim.html that opens by double-clicking — no server, no
+// localhost, no WSL port forwarding. Fonts are inlined too, because Chrome
+// blocks @font-face over file:// even when the .ttf sits right next to the page.
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -13,6 +13,47 @@ const out = path.join(dir, "FightSim.html");
 
 let html = readFileSync(path.join(dir, "index.html"), "utf8");
 const data = readFileSync(path.join(dir, "data.json"), "utf8");
+const aliases = readFileSync(path.join(dir, "aliases.json"), "utf8");
+
+// Search aliases are UI metadata, not model data. Keep them in their own
+// reviewed source rather than hand-editing generated data.json. Validate every
+// target and every normalized key before the artifact can be built.
+const parsed = JSON.parse(data);
+const aliasData = JSON.parse(aliases);
+const aliasKey = (s) => s.normalize("NFKD").toLowerCase()
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/ł/g, "l").replace(/[đð]/g, "d").replace(/ø/g, "o")
+  .replace(/æ/g, "ae").replace(/œ/g, "oe").replace(/ß/g, "ss")
+  .replace(/[^a-z0-9]+/g, "");
+const owners = new Map();
+for (const name of Object.keys(parsed.fighters)) {
+  const key = aliasKey(name);
+  const owner = owners.get(key);
+  if (owner && owner !== name) {
+    console.error(`Canonical search collision: "${owner}" / "${name}"`);
+    process.exit(1);
+  }
+  owners.set(key, name);
+}
+for (const [name, list] of Object.entries(aliasData)) {
+  if (!Object.hasOwn(parsed.fighters, name)) {
+    console.error(`Alias target is not in data.json: ${name}`);
+    process.exit(1);
+  }
+  if (!Array.isArray(list) || !list.length || list.some((a) => typeof a !== "string" || !a.trim())) {
+    console.error(`Alias list is empty or invalid: ${name}`);
+    process.exit(1);
+  }
+  for (const alias of list) {
+    const key = aliasKey(alias);
+    const owner = owners.get(key);
+    if (owner && owner !== name) {
+      console.error(`Ambiguous alias "${alias}": ${owner} / ${name}`);
+      process.exit(1);
+    }
+    owners.set(key, name);
+  }
+}
 
 // 1. inline the fonts as data URIs
 const fonts = [
@@ -32,12 +73,15 @@ for (const f of fonts) {
 // 2. inline the model + fighters. </script> inside JSON would close the tag
 //    early, so escape the only sequence that can do that.
 const safe = data.replace(/<\/script/gi, "<\\/script");
+const safeAliases = aliases.replace(/<\/script/gi, "<\\/script");
 html = html.replace(
   "<script>\nlet M=null",
-  `<script id="fjdata" type="application/json">${safe}</script>\n<script>\nlet M=null`
+  `<script id="fjdata" type="application/json">${safe}</script>\n`
+    + `<script id="fjalias" type="application/json">${safeAliases}</script>\n`
+    + `<script>\nlet M=null`
 );
 
-if (!html.includes('id="fjdata"')) {
+if (!html.includes('id="fjdata"') || !html.includes('id="fjalias"')) {
   console.error("Injection point not found — did index.html's <script> tag change?");
   process.exit(1);
 }

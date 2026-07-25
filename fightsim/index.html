@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FIGHT SIM — 1,000 rollouts per matchup</title>
+<title>FIGHT SIM — a line-blind UFC matchup read</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0c'/><path fill='none' stroke='%23f2f2f0' stroke-width='7' d='M31 6H69L94 31V69L69 94H31L6 69V31Z'/><path fill='%23f2f2f0' d='M36 24H49V70H41V56L30 49V40Z'/><rect x='49' y='18' width='2.5' height='64' fill='%23f2f2f0'/><rect x='56' y='34' width='14' height='5' fill='%23f2f2f0'/><rect x='56' y='47' width='22' height='5' fill='%23f2f2f0'/><rect x='56' y='60' width='11' height='5' fill='%23f2f2f0'/></svg>">
 <style>
 @font-face{font-family:Anton;src:url(fonts/Anton-Regular.ttf) format('truetype');font-display:swap}
@@ -135,21 +135,29 @@ header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid
    lives inside #empanel too — so a `.hero` rule here collapsed the ELO row to a
    10px sliver. Ids are covered by the DOM contract; class names are not.
    Descendant selectors below for the same reason. */
-.thesis{overflow:hidden;max-height:440px;margin-bottom:var(--sp-5);
+.thesis{overflow:hidden;max-height:560px;margin-bottom:var(--sp-5);
   transition:max-height var(--dur-reveal) var(--ease-out),
              opacity var(--dur-reveal) var(--ease-out),
              margin-bottom var(--dur-reveal) var(--ease-out)}
 #empanel.armed .thesis{max-height:0;opacity:0;margin-bottom:0}
+.thesis .topline{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+  margin-bottom:var(--sp-3)}
 .thesis .kick{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.24em;
-  color:#55555f;margin-bottom:var(--sp-3)}
-.thesis h1{font-family:Barlow;font-weight:700;font-size:clamp(27px,4vw,46px);line-height:1.08;
-  letter-spacing:-.004em;color:var(--ink);max-width:min(100%,800px)}
+  color:#55555f}
+.cardlink{background:none;border:0;border-bottom:1px solid #303039;color:#9a9aa4;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;padding:0 0 4px;
+  cursor:pointer;white-space:nowrap}
+.cardlink:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.thesis h1{font-family:Barlow;font-weight:700;font-size:clamp(31px,4.8vw,54px);line-height:1.02;
+  letter-spacing:-.008em;color:var(--ink);max-width:min(100%,940px)}
 /* Emphasis by tone, not by hue. Blue and red mean BLUE CORNER and RED CORNER
    everywhere else on this page, and a blue→red wash across a phrase that is not
    a corner spends the one distinction the palette exists to protect. */
 .thesis h1 span{color:#7a7a84}
-/* The refusal strip. Three measured figures, and the first one is red because
-   it is the only number on this page that no competing tool can print. */
+.thesis .dek{font-size:clamp(16px,2vw,20px);line-height:1.45;color:#9a9aa4;
+  max-width:760px;margin-top:var(--sp-3);text-wrap:balance}
+/* The refusal strip. Three measured figures, with the no-edge share first
+   because declining unsupported certainty is the product's central behavior. */
 .refuse{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
   border:1px solid var(--line);margin-top:var(--sp-4)}
 .refuse div{background:#0b0b0f;padding:14px 16px 13px}
@@ -374,22 +382,22 @@ input::placeholder{color:#3a3a44}
 
 /* ---- the method screen ---------------------------------------------------
    Shown once, remembered, reopenable from the masthead. Three beats: what it
-   runs, how it was validated, and why its headline number is WORSE than the
-   competition's — which is the only part a sceptic actually needs. */
+   runs, how it was validated, and why the time-ordered evaluation reports
+   deliberately lower, more honest numbers. */
 .intro{position:fixed;inset:0;z-index:90;background:var(--surf-0);display:none;
   overflow-y:auto;padding:var(--sp-5) var(--sp-4)}
 /* no entrance fade — this is the first paint, and fading in over the page
    behind it just looks like a rendering fault */
-.intro.on{display:block}
+.intro.on{display:flex}
 .intro::before{content:"";position:fixed;inset:0;pointer-events:none;
   background:radial-gradient(ellipse 60% 44% at 6% -6%,rgba(43,127,255,.16),transparent 60%),
              radial-gradient(ellipse 60% 44% at 94% -6%,rgba(224,26,34,.16),transparent 60%)}
-.ibox{max-width:720px;margin:0 auto;position:relative;padding-bottom:20px}
+.ibox{width:100%;max-width:760px;margin:auto;position:relative;padding-bottom:20px}
 .imark{display:flex;align-items:center;gap:clamp(12px,1.8vw,20px)}
 .imark .glyph{width:clamp(48px,8vw,74px);height:clamp(48px,8vw,74px)}
 .imark .wm{font-size:clamp(38px,7vw,62px);letter-spacing:.01em}
-.ilead{font-size:clamp(19px,2.6vw,25px);font-weight:600;color:#d8d8dc;line-height:1.32;
-  margin-top:16px;max-width:30ch;text-wrap:balance}
+.ilead{font-size:clamp(19px,2.6vw,26px);font-weight:600;color:#d8d8dc;line-height:1.32;
+  margin-top:16px;max-width:39ch;text-wrap:balance}
 .ipts{margin-top:30px;display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
 .ipt{background:#0b0b0f;padding:16px 18px;display:grid;grid-template-columns:150px 1fr;gap:18px;
   align-items:start}
@@ -414,6 +422,10 @@ input::placeholder{color:#3a3a44}
    is the parts a single matchup does not have: the input pair, the results
    table, and the refusal treatment that is the whole point of the screen. */
 .ebox{max-width:760px}
+/* CLOSE lives in the masthead row, not in the post-run actions — the panel must
+   be dismissable by pointer before a card has ever been run (EVENT opens
+   prefilled from a result now, and Escape is not the only door out). */
+.imark .eclose{margin-left:auto;align-self:center}
 .etag{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--bg);
   background:var(--blue);padding:3px 7px 2px;border-radius:2px;margin-left:12px;vertical-align:3px}
 .efield{margin-top:20px}
@@ -453,6 +465,10 @@ input::placeholder{color:#3a3a44}
   .ep{font-size:11px}.erow.dec .ep{font-size:9px}
 }
 @media(max-width:640px){ .ipt{grid-template-columns:1fr;gap:6px} .ipt b{font-size:22px} }
+@media(max-height:700px){
+  .intro.on{display:block}
+  .ibox{margin:0 auto}
+}
 
 /* ---- the pipeline rig ---------------------------------------------------- */
 .rigbar{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;
@@ -551,10 +567,13 @@ input::placeholder{color:#3a3a44}
 .ar .av{font-family:var(--mono);font-size:10px;color:#6a6a74;text-align:right;
   font-variant-numeric:tabular-nums}
 .ar.pa .av{color:#6ba4ff}.ar.pb .av{color:#e8676d}
-.attr .tot{display:flex;justify-content:space-between;margin-top:13px;padding-top:11px;
-  border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;
+.attr .tot{display:flex;justify-content:space-between;gap:12px;margin:0 0 9px;padding:8px 0;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:9.5px;
   letter-spacing:.09em;color:#4e4e58}
 .attr .tot b{color:#9a9aa4;font-weight:400}
+.attr .tot span{max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attr .tot span:last-child{text-align:right}
 /* Grouped rows. 34 terms flat is a list; six families with subtotals is an
    argument, and the subtotal is the number that actually answers "why". The
    members stay one click away rather than gone — <details> so it costs no JS
@@ -592,9 +611,14 @@ input::placeholder{color:#3a3a44}
   font-weight:400;margin-bottom:var(--sp-3)}
 .phead{font-family:Anton;font-size:clamp(20px,2.6vw,31px);line-height:1.1;
   color:var(--ink);letter-spacing:.005em;text-wrap:balance}
-.phead b{color:var(--red);font-weight:400}
+.phead b{color:var(--ink);font-weight:400}
 .pcap{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:#4e4e58;
   margin-top:var(--sp-2)}
+.pnote{font-family:var(--mono);font-size:9.5px;line-height:1.55;letter-spacing:.04em;
+  color:#676771;margin-top:var(--sp-3)}
+.pnote+.trks{margin-top:var(--sp-3)}
+.paxes{display:flex;justify-content:space-between;gap:12px;margin-top:var(--sp-3);
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:#55555f}
 /* The calibration curve, live off the shipped holdout. This block used to be
    three big numbers under six lines of caption saying what they meant. It is a
    plot of realised against claimed, so the caption is the axes: the dots climb,
@@ -607,30 +631,15 @@ input::placeholder{color:#3a3a44}
 .pfig svg{display:block;max-width:100%}
 .pfig .ax{fill:#4e4e58;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em}
 .pfig .ax.b{fill:var(--ink)}
-/* Two receipts, one hit and one miss from the same band. State is carried by
-   WEIGHT, not hue — the same rule the verdict stamp follows, and for the same
-   reason: blue and red mean BLUE CORNER and RED CORNER everywhere else on this
-   page, and these cards sit directly above a panel where they genuinely do.
-   A blue "IT WAS RIGHT" beside a red "IT WAS WRONG" reads as the two fighters.
-   The miss is the louder of the two, which is the right way round here. */
-/* Scoped to their containers, not bare. `.tk` was already the tale of the
-   tape's 3px gap track — a bare `.tk{padding:14px;border-top:2px}` here put a
-   panel border on every row of the tape, moved 7.6% of the pixels on a screen
-   this section is not even visible on, and the assertion suite stayed green
-   through all of it. Grep before naming a class; scope it once you have. */
-.pex{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:var(--sp-3)}
-.pex .rc{border:1px solid var(--line);background:var(--surf-2);padding:13px 14px 12px;
-  border-left:3px solid var(--line)}
-.pex .rc.y{border-left-color:#3a3a45}
-.pex .rc.n{border-left-color:var(--ink)}
-.pex .rc b{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;
-  color:var(--grey);font-weight:400;margin-bottom:8px}
-.pex .rc.n b{color:var(--ink)}
-.pex .rc u{display:block;font-family:Anton;font-size:19px;color:var(--ink);
-  text-decoration:none;line-height:1.1}
-.pex .rc i{display:block;font-size:12.5px;font-style:normal;color:#8e8e98;margin-top:4px}
-.pex .rc span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;
-  color:#4e4e58;margin-top:8px}
+.pex{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  margin-top:var(--sp-3)}
+.pex .ps{background:var(--surf-2);padding:12px 13px 11px;min-width:0}
+.pex .ps b{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  color:var(--grey);font-weight:400;margin-bottom:7px}
+.pex .ps u{display:block;font-family:Anton;font-size:23px;color:var(--ink);
+  text-decoration:none;line-height:1}
+.pex .ps span{display:block;font-family:var(--mono);font-size:8.5px;line-height:1.4;
+  letter-spacing:.05em;color:#55555f;margin-top:7px}
 .trks{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
 .trks .trec{background:var(--surf-2);padding:14px 15px 13px;border-top:2px solid var(--line)}
 .trks .trec.a{border-top-color:var(--blue)}.trks .trec.b{border-top-color:var(--red)}
@@ -699,6 +708,53 @@ input::placeholder{color:#3a3a44}
 .cell u.l{color:var(--blue)}
 .cell small{display:block;font-family:var(--mono);font-size:10px;color:var(--grey);margin-top:5px}
 
+/* The 20-second answer. Every value here already exists elsewhere in the
+   result; this layer saves the reader from assembling the conclusion across
+   the tally, calibration panel and grouped terms. */
+.brief{border:1px solid #303039;background:linear-gradient(135deg,#111117,#0b0b0f 64%);
+  padding:20px 22px 18px;margin-bottom:var(--sp-3)}
+.brief .brow{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--grey)}
+.brief .brow b{color:var(--ink);font-weight:400}
+.brief .brow em{font-style:normal;letter-spacing:.1em;color:#55555f}
+.brief .bline{font-family:Anton;font-size:clamp(25px,3.5vw,40px);line-height:1.06;
+  letter-spacing:.006em;color:var(--ink);margin-top:var(--sp-3);text-wrap:balance}
+.brief .bsplit{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:#65656f;
+  margin-top:9px}
+.brief .bgrid{display:grid;grid-template-columns:1.1fr 1.1fr .8fr;gap:1px;
+  background:var(--line);margin-top:var(--sp-4)}
+.brief .bgrid>div{background:#0d0d12;padding:13px 14px 12px}
+.brief .bgrid>div>b{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  color:#6c6c76;font-weight:400;margin-bottom:7px}
+.brief .bdrivers{display:grid;gap:6px}
+.brief .bd{display:grid;grid-template-columns:74px minmax(36px,1fr) minmax(72px,auto);
+  gap:7px;align-items:center;min-width:0}
+.brief .bd>span,.brief .bc>span{font-family:var(--mono);font-size:8px;letter-spacing:.08em;
+  color:#767680;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brief .bd>u,.brief .bc>u{display:block;height:6px;background:#17171d;text-decoration:none;
+  position:relative;overflow:hidden;border-radius:1px}
+.brief .bd>u i,.brief .bc>u i{position:absolute;left:0;top:0;height:100%;display:block}
+.brief .bd>u i.a{background:var(--blue)}.brief .bd>u i.b{background:var(--red)}
+.brief .bd>em{font-family:var(--mono);font-size:8px;letter-spacing:.04em;font-style:normal;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.brief .bd>em.a{color:#6ba4ff}.brief .bd>em.b{color:#e8676d}
+.brief .bc{display:grid;grid-template-columns:74px 1fr 27px;gap:7px;align-items:center;
+  margin-top:3px}
+.brief .bc>u i{background:#8e8e98}
+.brief .bc>b{font-family:var(--mono);font-size:8px;color:#a0a0a9;font-weight:400;
+  text-align:right}
+.brief .bn{font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:#676771}
+.brief .btrust{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+.brief .btrust>span{background:#111116;padding:8px 7px 7px;min-width:0}
+.brief .btrust i,.brief .btrust small{display:block;font-family:var(--mono);font-style:normal;
+  color:#60606a;letter-spacing:.08em}
+.brief .btrust i{font-size:8px}.brief .btrust small{font-size:8px;line-height:1.3;margin-top:4px}
+.brief .btrust u{display:block;font-family:Anton;font-size:19px;color:var(--ink);
+  text-decoration:none;line-height:1;margin-top:5px}
+.brief .bgrid p{font-size:12px;line-height:1.4;color:#a8a8b2}
+.brief .bgrid .blind p{color:#73737d}
+.brief .bgrid .blind>b{color:#55555f}
+
 /* The tail, rebuilt to the card's hierarchy: label, headline, the specific run,
    then the fine print. The page had every part of this EXCEPT the headline —
    the one line anyone would actually repost — so the block opened on a
@@ -738,6 +794,12 @@ input::placeholder{color:#3a3a44}
   display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
   font-family:var(--mono);font-size:10px;color:var(--grey);letter-spacing:.05em}
 .acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:22px}
+.verdict>.acts{margin:0 0 var(--sp-4)}
+.next{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border:1px solid #303039;background:#101015;padding:12px 14px;margin-bottom:var(--sp-3)}
+.next span{font-family:var(--mono);font-size:9px;line-height:1.5;letter-spacing:.15em;
+  color:#777781}
+.next .save{flex:0 0 auto;padding:11px 18px;font-size:15px}
 .save{background:var(--red);color:#fff;border:0;font-family:Anton;font-size:17px;
   letter-spacing:.08em;padding:14px 26px;cursor:pointer;border-radius:2px}
 .save:hover{background:#f52530}
@@ -762,7 +824,14 @@ input::placeholder{color:#3a3a44}
      lines and reads as two separate links */
   .hint span{white-space:nowrap}
   body::after{inset:6px}
-  .thesis{margin-bottom:var(--sp-4)}
+  #empanel{padding-top:18px}
+  .thesis{margin-bottom:18px}
+  .thesis .topline{align-items:flex-start;margin-bottom:10px}
+  .thesis .kick{line-height:1.5}
+  .cardlink{font-size:8px;letter-spacing:.08em}
+  .thesis h1{font-size:29px}
+  .thesis .dek{font-size:14px;line-height:1.35;margin-top:10px}
+  .thesis .refuse{margin-top:14px}
   .panel{grid-template-columns:1fr;gap:8px}.vs{padding:4px 0}
   .grid{grid-template-columns:1fr}.names div{max-width:100%;font-size:24px}
   .names{flex-direction:column;align-items:flex-start}.names div:last-child{text-align:left}
@@ -775,15 +844,36 @@ input::placeholder{color:#3a3a44}
      the row's own bar */
   .tr{gap:8px;padding:10px 0 9px}.tr .tv{font-size:15px}.tr.hero .tv{font-size:22px}
   .tr .tv.st{font-size:9.5px;letter-spacing:.06em}
-  .tr .tl{font-size:7.5px;letter-spacing:.14em}
+  .tr .tl{font-size:8.5px;letter-spacing:.12em}
   .sim{height:214px}
   .ar{grid-template-columns:124px 1fr 38px;gap:7px}
-  .ar .an{font-size:8px;letter-spacing:.02em}
-  .ar.t .an{padding-left:7px;font-size:7.5px}
+  .ar .an{font-size:8.5px;letter-spacing:.02em}
+  .ar.t .an{padding-left:7px;font-size:8px}
   .attr h4,.pnl h4{letter-spacing:.2em}
+  /* Keep the heuristic visible, but compact: it is supporting display logic,
+     not the calibrated answer. */
+  .grid .cell:nth-child(3){display:grid;grid-template-columns:92px 82px 1fr;
+    gap:8px;align-items:center;padding:11px 15px}
+  .grid .cell:nth-child(3) b,.grid .cell:nth-child(3) u,
+  .grid .cell:nth-child(3) small{margin:0}
+  .grid .cell:nth-child(3) u{font-size:20px}
+  .grid .cell:nth-child(3) small{font-size:9px;line-height:1.35}
+  .next{align-items:stretch;flex-direction:column;gap:9px}
+  .next .save{width:100%}
+  .brief{padding:17px 15px 15px}
+  .brief .bgrid{grid-template-columns:1fr}
+  .brief .bgrid>div{padding:11px 12px 10px}
+  .brief .bgrid>div>b{font-size:9px}
+  .brief .bd>span,.brief .bd>em,.brief .bc>span,.brief .bc>b,.brief .bn,
+  .brief .btrust i,.brief .btrust small{font-size:9px}
+  .brief .bgrid p{font-size:12px}
   /* the two receipts and the two corners stack — side by side at 390px each
      column is ~170px, which puts a fighter's name on three lines */
-  .pex,.trks{grid-template-columns:1fr}
+  .trks{grid-template-columns:1fr}
+  .pex{grid-template-columns:repeat(3,1fr)}
+  .pex .ps{padding:10px 8px 9px}
+  .pex .ps u{font-size:19px}
+  .pex .ps span{display:none}
   .trks{gap:1px}
   .pfig{flex-direction:column}
   .pfig b{font-size:23px}
@@ -815,22 +905,22 @@ input::placeholder{color:#3a3a44}
 <div class="intro on" id="intro">
   <div class="ibox">
     <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
-    <p class="ilead">Nobody can predict a fight. This measures how much nobody can.</p>
+    <p class="ilead">A transparent matchup read that shows where the record separates — and where it does not.</p>
     <div class="ipts">
-      <div class="ipt k1"><b>1,000</b><span>Monte Carlo rollouts per matchup, drawn through a calibrated
-        logistic fit on <i>6,457 UFC bouts</i>. You get the spread, never a call.</span></div>
-      <div class="ipt k2"><b>ROLLING<br>ORIGIN</b><span>Every feature is computed only from bouts that had
-        <i>already happened</i>; validation trains on everything before year N and tests on year N.
-        A random split scores higher on the same data by leaking a fighter's future into their own
-        past. <i>These numbers are lower because they are real.</i></span></div>
-      <div class="ipt k3"><b>40%</b><span>Of fights it refuses to call. On those it measured itself at
-        <i>52.0%</i> — a coin flip. On the 60% it will call it is right <i>67.2%</i> of the time.
-        Forced to call everything, <i>61.2%</i>.</span></div>
+      <div class="ipt k1"><b>COMPARE</b><span>Striking, grappling, damage, form, rating and physicals
+        are read from each fighter's chosen career year. The fit was trained on <i>6,457 UFC bouts</i>
+        and never sees a betting line.</span></div>
+      <div class="ipt k2"><b>RUN<br>1,000</b><span>The matchup runs through <i>1,000 declared feature
+        perturbations</i>. The result is the whole split — including every run that lands on the other
+        side — not manufactured certainty.</span></div>
+      <div class="ipt k3"><b>REFUSE<br>40.4%</b><span>When confidence stays below 58%, FIGHT SIM prints
+        <i>NO EDGE</i>. Those held-out fights realised <i>52.0%</i>; above the threshold, the
+        higher-probability side realised <i>67.2%</i>.</span></div>
     </div>
     <p class="ifoot">ON THE <b>15.6%</b> IT CALLS ≥70%: <b>76.8%</b> · BRIER <b>0.230</b> ·
       MEAN CALIBRATION ERROR <b>1.1</b> PTS, WORST BAND <b>2.5</b> · <b>3,404</b> HELD-OUT FIGHTS ·
-      NEVER SEES A BETTING LINE · WHEN IT HAS NOTHING, IT SAYS SO</p>
-    <button class="ienter" id="ienter">ENTER</button>
+      FORCED ACROSS EVERY FIGHT: <b>61.2%</b> · WHEN THE RECORD HAS NOTHING, IT SAYS SO</p>
+    <button class="ienter" id="ienter">START A MATCHUP</button>
   </div>
 </div>
 
@@ -839,7 +929,7 @@ input::placeholder{color:#3a3a44}
      disturb the main page's layout: every existing screen diffs at 0.000%. -->
 <div class="intro" id="evpanel">
   <div class="ibox ebox">
-    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span><span class="etag">EVENT</span></div>
+    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span><span class="etag">EVENT</span><button class="method eclose" id="eclose">CLOSE</button></div>
     <p class="ilead">One card. Every fight. The ones it will not call, marked as refused.</p>
     <div class="efield">
       <label for="ename">EVENT</label>
@@ -857,7 +947,6 @@ input::placeholder{color:#3a3a44}
     <div class="eacts" id="eacts">
       <button class="save" id="esave">EXPORT THE SCORECARD</button>
       <button class="again" id="ejson">Copy the receipt</button>
-      <button class="again" id="eclose">Close</button>
       <span class="esaved" id="esaved"></span>
     </div>
   </div>
@@ -867,7 +956,7 @@ input::placeholder{color:#3a3a44}
 
   <header>
     <div class="mark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
-    <div class="tag">1,000 Monte Carlo rollouts per matchup</div>
+    <div class="tag">A line-blind read of any UFC matchup</div>
     <div class="spacer"></div>
     <button class="method" id="event">EVENT</button>
     <button class="method" id="method">METHOD</button>
@@ -878,8 +967,13 @@ input::placeholder{color:#3a3a44}
   <!-- EMPANEL -->
   <section id="empanel">
     <div class="thesis">
-      <div class="kick">NOT A PREDICTION. A DISTRIBUTION.</div>
-      <h1><span>Nobody can predict a fight.</span><br>This one refuses two in five.</h1>
+      <div class="topline">
+        <div class="kick">NOT A PREDICTION. A DISTRIBUTION.</div>
+        <button class="cardlink" id="eventhero">READ THE WHOLE CARD →</button>
+      </div>
+      <h1>SEE WHAT THE RECORD SEPARATES.<br><span>AND WHAT IT DOESN'T.</span></h1>
+      <p class="dek">Choose two fighters. FIGHT SIM compares their career records across 1,000
+        line-blind rollouts, then shows meaningful separation or no edge.</p>
       <!-- The differentiator, on the cold page. Populated from MET so the only
            place these figures exist is the block tools/build-data.py prints. -->
       <div class="refuse" id="refuse"></div>
@@ -945,16 +1039,35 @@ input::placeholder{color:#3a3a44}
     <div class="verdict" id="verdict">
       <div class="stamp" id="stamp">CONVERGED</div>
       <div class="grid">
-        <div class="cell"><b>Modal outcome</b><u id="vmaj">—</u><small id="vmajs">—</small></div>
-        <div class="cell"><b>Termination</b><u id="vmeth">—</u><small id="vmeths">—</small></div>
-        <div class="cell"><b>Posterior</b><u id="vconf">—</u><small id="vconfs">—</small></div>
+        <div class="cell"><b>Model read</b><u id="vmaj">—</u><small id="vmajs">—</small></div>
+        <div class="cell"><b>Model confidence</b><u id="vconf">—</u><small id="vconfs">—</small></div>
+        <div class="cell"><b>Illustrative ending</b><u id="vmeth">—</u><small id="vmeths">—</small></div>
+      </div>
+      <div class="next">
+        <span>NEXT · CARRY THIS MATCHUP INTO A WHOLE-CARD SCORECARD</span>
+        <button class="save" id="eventresult">BUILD AN EVENT SCORECARD</button>
+      </div>
+      <section class="brief" id="brief">
+        <div class="brow"><b>THE SHORT READ</b><em>20-SECOND BRIEF</em></div>
+        <div class="bline" id="bline">—</div>
+        <div class="bsplit" id="bsplit">—</div>
+        <div class="bgrid">
+          <div><b>WHAT MOVED IT</b><div class="bdrivers" id="bdrivers">—</div></div>
+          <div><b>HOW THIS CONFIDENCE HELD UP</b><div class="btrust" id="btrust">—</div></div>
+          <div class="blind"><b>NOT SCORED</b><p id="bblind">INJURIES · CAMPS · WEIGHT CUTS · BETTING LINES · SOCIAL CHATTER</p></div>
+        </div>
+      </section>
+      <div class="acts">
+        <button class="again" id="save">Export this matchup</button>
+        <button class="again" id="copy">Copy image</button>
+        <button class="again" id="again">New matchup</button>
       </div>
       <!-- The tail sits ABOVE the attribution now. It is the shareable object
            and the product's whole thesis; a dense technical panel was standing
            between the headline numbers and the hook. The sceptic who wants the
            arithmetic reads on — it did not go anywhere. -->
       <div class="dissent" id="dissent">
-        <h3>THE <span>TAIL</span></h3>
+        <h3>UNCERTAINTY · <span>THE OTHER SIDE</span></h3>
         <div class="dhead" id="dhead">—</div>
         <div class="q" id="dquote">—</div>
         <div class="ent" id="dent"></div>
@@ -976,31 +1089,30 @@ input::placeholder{color:#3a3a44}
         <h3>THE <span>READ</span> — <em id="rmeta">—</em></h3>
 
         <div class="pnl" id="prec">
-          <h4>PRECEDENT · THE RECORD AT THIS READING</h4>
+          <h4>CALIBRATION AT THIS CONFIDENCE</h4>
           <div class="phead" id="prechead">—</div>
           <div class="pcap" id="preccap">—</div>
+          <div class="paxes"><span>↑ HOW OFTEN THE HIGHER-PROBABILITY SIDE WON</span><span>MODEL CONFIDENCE →</span></div>
           <div class="pfig" id="precfig"></div>
           <div class="pex" id="precex"></div>
+          <p class="pnote">This checks whether the model historically earned this level of confidence.
+            It is not extra evidence about either fighter.</p>
         </div>
 
         <div class="pnl" id="trk">
-          <h4>ITS RECORD ON THESE TWO</h4>
+          <h4>MODEL HISTORY WITH THESE FIGHTERS</h4>
+          <p class="pnote">A fighter-specific audit of held-out bouts. It does not change the matchup above.</p>
           <div class="trks"><div id="trka"></div><div id="trkb"></div></div>
         </div>
 
         <div class="attr" id="attr">
-          <h4>WHAT MOVED THE POSTERIOR</h4>
+          <h4>WHAT PULLED THE MODEL TOWARD EACH CORNER</h4>
           <div class="sub" id="attrsub">—</div>
           <div class="sub" id="attrcx">—</div>
-          <div id="attrows"></div>
           <div class="tot"><span id="attrl">—</span><span id="attrr">—</span></div>
+          <div id="attrows"></div>
         </div>
       </section>
-      <div class="acts">
-        <button class="save" id="save">EXPORT THE CARD</button>
-        <button class="again" id="copy">Copy image</button>
-        <button class="again" id="again">New matchup</button>
-      </div>
       <div class="foot">
         <div>FIGHT SIM · L2 LOGISTIC · LINE-BLIND · NOT A PREDICTION. A DISTRIBUTION.<br>
           Data derived from UFCStats.com via the Greco1899/scrape_ufc_stats mirror.
@@ -1012,7 +1124,7 @@ input::placeholder{color:#3a3a44}
 </div>
 
 <script>
-let M=null,FI=null,HO=null,NAMES=[];
+let M=null,FI=null,HO=null,NAMES=[],ALIASES={};
 const $=id=>document.getElementById(id);
 const N_JURORS=1000;
 
@@ -1021,19 +1133,20 @@ const N_JURORS=1000;
    tools/build-data.py, which writes them to tools/metrics.txt. `npm test`
    parses that file and fails if any of these has drifted from it, so the
    screen and the pipeline cannot disagree the way they did for months. */
-const MET={ THR:0.58, REFUSE:40, REFUSE_ACC:'52.0', CALL:60, CALL_ACC:'67.2',
+const MET={ THR:0.58, REFUSE:40.4, REFUSE_ACC:'52.0', CALL:59.6, CALL_ACC:'67.2',
             FORCED:'61.2', SURE:15.6, SURE_ACC:'76.8', BRIER:'0.230',
             ECE:'1.1', WORST:'2.5', N:'3,404' };
 
-function boot(d){
-  M=d.model; FI=d.fighters; HO=d.holdout||null; NAMES=Object.keys(FI).sort();
+function boot(d,aliases={}){
+  M=d.model; FI=d.fighters; HO=d.holdout||null; ALIASES=aliases||{};
+  NAMES=Object.keys(FI).sort();
   $('refuse').innerHTML=
-     `<div><b>${MET.REFUSE}%</b><em>REFUSED</em>`
-      +`<span>OF FIGHTS REFUSED<br>UNDER A ${MET.THR} POSTERIOR</span></div>`
-    +`<div><b>${MET.REFUSE_ACC}%</b><em>ON THOSE</em>`
-      +`<span>REALISED ON THOSE<br>A COIN FLIP, MEASURED</span></div>`
-    +`<div><b>${MET.CALL_ACC}%</b><em>WHEN IT CALLS</em>`
-      +`<span>REALISED ON THE ${MET.CALL}%<br>IT WILL ACTUALLY CALL</span></div>`;
+     `<div><b>${MET.REFUSE}%</b><em>NO EDGE</em>`
+      +`<span>OF HELD-OUT FIGHTS<br>WERE TOO CLOSE TO SEPARATE</span></div>`
+    +`<div><b>${MET.REFUSE_ACC}%</b><em>AT NO EDGE</em>`
+      +`<span>THE HIGHER-PROBABILITY SIDE<br>WON IN THAT SET</span></div>`
+    +`<div><b>${MET.CALL_ACC}%</b><em>ABOVE 58%</em>`
+      +`<span>THE HIGHER-PROBABILITY SIDE<br>WON IN THE REMAINING ${MET.CALL}%</span></div>`;
   $('nf').textContent=NAMES.length.toLocaleString();
   /* The masthead used to state 32, hardcoded — M.feats.length, the named
      stat and bio columns. That silently excluded elo and listed weight, so the
@@ -1049,11 +1162,13 @@ function boot(d){
 // The built single-file version embeds the data, so it opens straight off disk
 // with no server. The source version falls back to fetch.
 const inline=document.getElementById('fjdata');
-if(inline){ boot(JSON.parse(inline.textContent)); }
-else fetch('data.json').then(r=>r.json()).then(boot)
-  .catch(()=>{ $('warn').textContent='Could not load data.json — this is index.html, the editable source, '+
-    'and the browser blocks its fetch over file://. Open FightSim.html instead (model and fighters are '+
-    'inlined into it), or serve this folder over http.'; });
+const aliasInline=document.getElementById('fjalias');
+if(inline){ boot(JSON.parse(inline.textContent),aliasInline?JSON.parse(aliasInline.textContent):{}); }
+else Promise.all([fetch('data.json').then(r=>r.json()),fetch('aliases.json').then(r=>r.json())])
+  .then(([d,a])=>boot(d,a))
+  .catch(()=>{ $('warn').textContent='Could not load data.json / aliases.json — this is index.html, the editable source, '+
+    'and the browser blocks its fetch over file://. Open FightSim.html instead; the model, fighters and '+
+    'reviewed aliases are inlined into that offline file.'; });
 
 /* ---------- model ---------- */
 // Build the ordered difference vector the model expects: FEATS diffs, then elo.
@@ -1198,40 +1313,110 @@ function empanel(A,B,ia,ib){
 }
 
 /* ---------- name resolution -------------------------------------------------
-   The index is keyed by UFCStats' exact spelling and lookup was exact, so
-   typing "jon jones" was declined as NOT IN THE INDEX — while the autocomplete
-   directly above it matched case-insensitively and listed him happily. The
-   "never guess a fighter" rule exists to stop the tool inventing people; it was
-   never meant to make it disown someone the file actually contains.
+   Canonical names, punctuation/spacing variants and reviewed aliases resolve
+   automatically only when the normalized key is unique. Typos are suggestions,
+   never silent resolution: choosing one is an explicit confirmation, which
+   preserves the rule that an unknown fighter is declined rather than guessed. */
+const fold=s=>String(s||'').trim().toLowerCase().normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/ł/g,'l').replace(/[đð]/g,'d').replace(/ø/g,'o')
+  .replace(/æ/g,'ae').replace(/œ/g,'oe').replace(/ß/g,'ss')
+  .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+const compact=s=>fold(s).replace(/\s/g,'');
+let SEARCH=null,NORMAL=null,COMPACT=null,ALIASMAP=null;
 
-   Folding is safe here rather than merely convenient: all 2,290 names fold to
-   2,290 distinct keys, so a fold can never resolve to the wrong fighter. The
-   index is pure ASCII, so stripping diacritics only ever helps the input side —
-   someone typing "José Aldo" now finds "Jose Aldo". */
-const fold=s=>s.trim().toLowerCase().normalize('NFD')
-               .replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
-let FOLDED=null;
+function putUnique(map,key,name){
+  if(!key) return;
+  if(!map.has(key)) map.set(key,name);
+  else if(map.get(key)!==name) map.set(key,null);
+}
+function buildSearch(){
+  if(SEARCH) return;
+  SEARCH=[]; NORMAL=new Map(); COMPACT=new Map(); ALIASMAP=new Map();
+  NAMES.forEach((name,ord)=>{
+    putUnique(NORMAL,fold(name),name); putUnique(COMPACT,compact(name),name);
+    const forms=[{text:name,key:fold(name),compact:compact(name),alias:false}];
+    const aliases=Object.hasOwn(ALIASES,name)?ALIASES[name]:[];
+    if(!Array.isArray(aliases)) throw new Error(`Invalid alias list: ${name}`);
+    aliases.forEach(text=>{
+      putUnique(ALIASMAP,compact(text),name);
+      forms.push({text,key:fold(text),compact:compact(text),alias:true});
+    });
+    SEARCH.push({name,ord,year:FI[name].v[FI[name].v.length-1].y,forms});
+  });
+}
 function resolve(s){
   if(!FI||!s) return '';
-  const raw=s.trim();
-  if(FI[raw]) return raw;                       // exact spelling — the common path
-  if(!FOLDED){ FOLDED=new Map(); for(const n of NAMES) FOLDED.set(fold(n),n); }
-  return FOLDED.get(fold(raw))||'';
+  const raw=String(s).trim();
+  if(Object.hasOwn(FI,raw)) return raw;
+  buildSearch();
+  return NORMAL.get(fold(raw))||COMPACT.get(compact(raw))||ALIASMAP.get(compact(raw))||'';
 }
+
+/* Bounded adjacent-transposition distance. At 2,290 names it is cheap, but it
+   only runs after the exact/prefix/substring paths and only for queries long
+   enough that one wrong character is useful rather than noisy. */
+function editDistance(a,b,limit){
+  if(Math.abs(a.length-b.length)>limit) return limit+1;
+  let pp=null,prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const cur=[i]; let rowMin=i;
+    for(let j=1;j<=b.length;j++){
+      let v=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(pp&&i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) v=Math.min(v,pp[j-2]+1);
+      cur[j]=v; rowMin=Math.min(rowMin,v);
+    }
+    if(rowMin>limit) return limit+1;
+    pp=prev; prev=cur;
+  }
+  return prev[b.length];
+}
+function searchFighters(value){
+  buildSearch();
+  const q=fold(value), qc=compact(value);
+  if(!q) return [];
+  const qt=q.split(' '), limit=qc.length>=8?2:(qc.length>=4?1:0), out=[];
+  for(const row of SEARCH){
+    let best=99,reason='';
+    for(const f of row.forms){
+      const toks=f.key.split(' '); let tier=99;
+      if(f.compact===qc) tier=f.alias?1:0;
+      else if(qt.every(t=>toks.some(x=>x.startsWith(t)))) tier=f.alias?3:2;
+      else if(f.compact.includes(qc)) tier=f.alias?5:4;
+      else if(limit){
+        let d=editDistance(qc,f.compact,limit);
+        for(const t of toks) d=Math.min(d,editDistance(qc,t,limit));
+        if(d<=limit) tier=6+d;
+      }
+      if(tier<best){
+        best=tier;
+        // MATCHED is reserved for an exact alias — a prefix or a typo is not a
+        // match, and saying so would claim a resolution the user never typed.
+        reason=f.alias
+          ? (tier===1?`MATCHED “${f.text.toUpperCase()}”`:`CLOSE TO “${f.text.toUpperCase()}”`)
+          : (tier>=6?'CLOSE MATCH':'');
+      }
+    }
+    if(best<99) out.push({...row,tier:best,reason});
+  }
+  return out.sort((a,b)=>a.tier-b.tier||b.year-a.year||a.ord-b.ord);
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- autocomplete ---------- */
 function wireAC(input,box){
   let sel=-1;
   const close=()=>{box.classList.remove('on');box.innerHTML='';sel=-1};
+  const choose=el=>{input.value=el.dataset.n;close();check();};
   input.addEventListener('input',()=>{
-    const q=input.value.trim().toLowerCase();
-    if(!q||!NAMES.length) return close();
-    const hits=NAMES.filter(n=>n.toLowerCase().includes(q)).slice(0,8);
+    if(!input.value.trim()||!NAMES.length) return close();
+    const hits=searchFighters(input.value).slice(0,8);
     if(!hits.length) return close();
-    box.innerHTML=hits.map(n=>{const p=primeOf(n);
-      return `<div data-n="${n.replace(/"/g,'&quot;')}">${n}<small>PEAK ${p.year} · ${FI[n].v.length} CAREER STATES · ELO ${Math.round(p.elo)}</small></div>`;}).join('');
+    box.innerHTML=hits.map(h=>{const p=primeOf(h.name),why=h.reason?`${esc(h.reason)} · `:'';
+      return `<div data-n="${esc(h.name)}">${esc(h.name)}<small>${why}PEAK ${p.year} · `+
+        `${FI[h.name].v.length} CAREER STATES · ELO ${Math.round(p.elo)}</small></div>`;}).join('');
     box.classList.add('on'); sel=-1;
-    box.querySelectorAll('div').forEach(el=>el.onclick=()=>{input.value=el.dataset.n;close();check();});
+    box.querySelectorAll('div').forEach(el=>el.onclick=()=>choose(el));
   });
   input.addEventListener('keydown',e=>{
     const items=box.querySelectorAll('div'); if(!items.length)return;
@@ -1239,16 +1424,17 @@ function wireAC(input,box){
       e.preventDefault(); sel=(sel+(e.key==='ArrowDown'?1:items.length-1))%items.length;
       items.forEach((el,i)=>el.classList.toggle('sel',i===sel));
       items[sel].scrollIntoView({block:'nearest'});
-    } else if(e.key==='Enter'&&sel>=0){ e.preventDefault(); input.value=items[sel].dataset.n; close(); check(); }
+    } else if(e.key==='Enter'){ e.preventDefault(); choose(items[sel>=0?sel:0]); }
     else if(e.key==='Escape') close();
   });
-  // on the way out, show the spelling that was actually matched — confirmation
-  // that "jon jones" found Jon Jones. Done on blur, never mid-keystroke, so it
-  // cannot fight the cursor while someone is still typing.
   input.addEventListener('blur',()=>setTimeout(()=>{
+    // Stale-timeout guard: focus can have returned here within the grace
+    // window (A -> B -> back to A), and closing then wipes live suggestions.
+    if(document.activeElement===input) return;
     close();
     const c=resolve(input.value);
-    if(c&&c!==input.value.trim()){ input.value=c; check(); }
+    if(c&&c!==input.value.trim()) input.value=c;
+    check(true);
   },160));
 }
 wireAC($('ia'),$('aca')); wireAC($('ib'),$('acb'));
@@ -1260,7 +1446,7 @@ wireAC($('ia'),$('aca')); wireAC($('ib'),$('acb'));
    other corner's year back to PRIME while you were still typing. */
 const verOf={sa:'',sb:''};
 function fillVersions(name,sel,wrap){
-  const key=(FI&&FI[name])?name:'';
+  const key=(FI&&Object.hasOwn(FI,name))?name:'';
   if(verOf[sel.id]===key) return;
   verOf[sel.id]=key;
   if(!key){ wrap.classList.remove('on'); sel.innerHTML=''; return; }
@@ -1429,28 +1615,35 @@ function syncTape(){
   const cw=$('cw');
   cw.classList.toggle('on',gap!=null&&gap>FREE_LBS);
   if(gap!=null&&gap>FREE_LBS)
-    cw.innerHTML=`<span>CATCHWEIGHT · ${gap} LB GAP · NO UFC PRECEDENT — PHYSICAL PRIOR APPLIED</span>`;
+    cw.innerHTML=`<span>CROSS-DIVISION · ${gap} LB GAP · DECLARED PHYSICAL PRIOR APPLIED</span>`;
   const duel=!!(a&&b);
   if(duel!==duelOn){ duelOn=duel; $('tape').classList.toggle('duel',duel); }
 }
 
-function check(){
+const invalidShown={ia:false,ib:false};
+function check(announce=false){
   // raw = what was typed, and what the refusal quotes back. a/b = the canonical
   // index name, or '' when there genuinely is no such fighter.
   const ra=$('ia').value.trim(), rb=$('ib').value.trim();
   const a=resolve(ra), b=resolve(rb);
+  if(!ra||a) invalidShown.ia=false;
+  if(!rb||b) invalidShown.ib=false;
+  if(announce){
+    invalidShown.ia=!!ra&&!a;
+    invalidShown.ib=!!rb&&!b;
+  }
   fillVersions(a,$('sa'),$('va'));
   fillVersions(b,$('sb'),$('vb'));
   syncTape();
   let msg='';
-  if(ra&&!a) msg=`NO UFC RECORD FOR "${ra.toUpperCase()}" — NOT IN THE INDEX.`;
-  else if(rb&&!b) msg=`NO UFC RECORD FOR "${rb.toUpperCase()}" — NOT IN THE INDEX.`;
+  if(invalidShown.ia) msg=`NO UFC RECORD FOR "${ra.toUpperCase()}" — NOT IN THE INDEX.`;
+  else if(invalidShown.ib) msg=`NO UFC RECORD FOR "${rb.toUpperCase()}" — NOT IN THE INDEX.`;
   // compared canonically, so "jon jones" vs "JON JONES" is still one fighter
   else if(a&&b&&a===b) msg='DEGENERATE MATCHUP — THE FEATURE DELTA IS THE ZERO VECTOR.';
   $('warn').textContent=msg;
   $('go').disabled=!(a&&b&&a!==b);
 }
-$('ia').addEventListener('input',check); $('ib').addEventListener('input',check);
+$('ia').addEventListener('input',()=>check()); $('ib').addEventListener('input',()=>check());
 document.querySelectorAll('.hint span').forEach(s=>s.onclick=()=>{
   $('ia').value=s.dataset.a; $('ib').value=s.dataset.b; check();
 });
@@ -1910,18 +2103,10 @@ function precedent(conf){
     widened=true;
   }
   const hits=band.filter(r=>r.hit);
-  /* One hit and one miss, quoted back. They are picked by the WEAKER fighter's
-     Elo going in, not by date: the point of quoting a fight is that you might
-     remember it, and the newest bout in any band is whichever prelim opened the
-     most recent card. Deterministic, and Array#sort is stable, so the same two
-     fights come back on every run — which is what lets the screenshot suite
-     diff a screen containing them at all. */
-  const best=a=>a.slice().sort((x,y)=>y.q-x.q||y.y-x.y)[0]||null;
   return {n:band.length, hit:hits.length, widened,
           lo:band[0].c, hi:band[band.length-1].c,
           rate:hits.length/band.length,
-          claim:band.reduce((s,r)=>s+r.c,0)/band.length,
-          right:best(hits), wrong:best(band.filter(r=>!r.hit))};
+          claim:band.reduce((s,r)=>s+r.c,0)/band.length};
 }
 /* ---- the calibration curve, drawn from the shipped holdout ----------------
    Seven bands, and for each one what the model claimed against what actually
@@ -1961,7 +2146,8 @@ function calChart(conf,W){
   const X=v=>L+(W-L-R)*Math.min(1,Math.max(0,(v-x0)/(x1-x0)));
   const Y=v=>T+(H-T-Bm)*(1-Math.min(1,Math.max(0,(v-y0)/(y1-y0))));
   const g=[], thr=X(MET.THR);
-  // the refusal zone, shaded rather than captioned
+  // The refusal zone is both shaded and named. Shading alone looked like an
+  // arbitrary background block unless the reader already knew the threshold.
   g.push(`<rect x="${L}" y="${T}" width="${(thr-L).toFixed(1)}" height="${H-T-Bm}" `
     +`fill="#101016"/>`);
   // 50% — a coin flip, the floor every band is measured against
@@ -1994,6 +2180,7 @@ function calChart(conf,W){
   t(L-6,Y(.5)+3,'50%','','end');
   t(Math.min(W-R,Math.max(L,cx)),T-12,'THIS FIGHT','b',
     cx>W-90?'end':(cx<L+50?'start':'middle'));
+  if(thr-L>54) t((L+thr)/2,T+14,'NO-EDGE ZONE','','middle');
   t(L,H-11,'0.50'); t(thr,H-11,MET.THR+(tight?'':' · REFUSES BELOW'),'','middle');
   t(W-R,H-11,'0.90','','end');
   if(!tight) t(X(y1)-8,Y(y1)-9,'PERFECTLY CALIBRATED','','end');
@@ -2024,23 +2211,27 @@ function record(name){
 
 function renderRead(A,B,conf){
   if(!HO){ $('prec').style.display='none'; $('trk').style.display='none'; return; }
-  const P=precedent(conf);
-  $('rmeta').textContent=`${MET.N} HELD-OUT BOUTS`;
+  const P=precedent(conf), gapPts=(P.rate-P.claim)*100;
+  $('rmeta').textContent=`${MET.N} HELD-OUT FIGHTS · ROLLING ORIGIN`;
   $('prechead').innerHTML=
-    `IT READ <b>${P.n.toLocaleString()}</b> HELD-OUT ${P.n===1?'FIGHT':'FIGHTS'} THIS WAY.<br>`+
-    `THE FAVOURITE WON <b>${P.hit.toLocaleString()}</b> — `+
+    `IN SIMILAR-CONFIDENCE FIGHTS, THE HIGHER-PROBABILITY SIDE WON `+
     `<b>${(P.rate*100).toFixed(1)}%</b>.`;
+  Object.assign($('prechead').dataset,{
+    n:String(P.n),hit:String(P.hit),rate:P.rate.toFixed(6),claim:P.claim.toFixed(6),
+    lo:P.lo.toFixed(6),hi:P.hi.toFixed(6)
+  });
   $('preccap').textContent=
-    `CONFIDENCE ${P.lo.toFixed(3)}–${P.hi.toFixed(3)}`+
-    (P.widened?' · WIDENED TO THE NEAREST '+HO_MIN+', THIS READING IS RARE':'')+
-    ` · IT CLAIMED ${P.claim.toFixed(3)}`;
+    `CONFIDENCE WINDOW ${(P.lo*100).toFixed(1)}–${(P.hi*100).toFixed(1)}% · `+
+    `CALIBRATION GAP ${Math.abs(gapPts)<.05?'0.0':`${gapPts>=0?'+':'−'}${Math.abs(gapPts).toFixed(1)}`} PTS`+
+    (P.widened?` · NEAREST ${HO_MIN} FIGHTS; THIS READING IS RARE`:'');
   CALAT=conf;
-  const rc=(r,won)=>r
-    ? `<div class="rc ${won?'y':'n'}"><b>${won?'IT WAS RIGHT':'IT WAS WRONG'}</b>`+
-      `<u>${r.fav}</u><i>${won?'beat':'lost to'} ${r.opp}</i>`+
-      `<span>${r.y} · READ ${r.c.toFixed(3)}</span></div>`
-    : `<div class="rc"><b>—</b><u>NONE IN THIS BAND</u></div>`;
-  $('precex').innerHTML=rc(P.right,true)+rc(P.wrong,false);
+  $('precex').innerHTML=
+    `<div class="ps"><b>SAMPLE</b><u>${P.n.toLocaleString()}</u>`+
+      `<span>HELD-OUT FIGHTS IN THIS CONFIDENCE WINDOW</span></div>`+
+    `<div class="ps"><b>MODEL SAID</b><u>${(P.claim*100).toFixed(1)}%</u>`+
+      `<span>AVERAGE CONFIDENCE ACROSS THOSE FIGHTS</span></div>`+
+    `<div class="ps"><b>ACTUAL</b><u>${(P.rate*100).toFixed(1)}%</u>`+
+      `<span>HIGHER-PROBABILITY SIDE WON</span></div>`;
 
   const tk=(name,side)=>{
     const R=record(name);
@@ -2060,12 +2251,50 @@ function renderRead(A,B,conf){
       `<div class="dt"><div class="tr2"><u></u><s style="${at(.5)}"></s>`+
         `<i class="cl" style="${at(R.meanP)}"></i>`+
         `<i class="re" style="${at(R.won/R.n)}"></i></div>`+
-        `<em><span>○ CLAIMED <b>${R.meanP.toFixed(2)}</b></span>`+
-        `<span>● WON <b>${R.won} OF ${R.n}</b></span></em></div>`+
+        `<em><span>○ AVG MODEL CHANCE <b>${(R.meanP*100).toFixed(0)}%</b></span>`+
+        `<span>● ACTUAL WIN RATE <b>${R.won} OF ${R.n}</b></span></em></div>`+
       (R.n<HO_THIN?`<span>SAMPLE TOO SMALL TO READ A PATTERN INTO</span>`:'')+
       `</div>`;
   };
   $('trka').innerHTML=tk(A,'a'); $('trkb').innerHTML=tk(B,'b');
+}
+
+function renderBrief(A,B,D,{maj,majN,minN,hung,confident,conf}){
+  const sums=new Map(GROUPS.map(g=>[g[0],0]));
+  D.T.forEach((c,i)=>sums.set(groupOf(M.cols[i]),(sums.get(groupOf(M.cols[i]))||0)+c));
+  if(D.prior) sums.set('CROSS-DIVISION MASS PRIOR',D.prior);
+  const drivers=[...sums].map(([name,sum])=>({name,sum})).filter(x=>Math.abs(x.sum)>=.005)
+    .sort((a,b)=>Math.abs(b.sum)-Math.abs(a.sum));
+  const gross=Math.abs(D.prior||0)+D.T.reduce((s,c)=>s+Math.abs(c),0);
+  const cancel=gross?Math.max(0,1-Math.abs(D.z0)/gross):0;
+  $('bline').textContent=hung
+    ? `NO EDGE AT ${(conf*100).toFixed(1)}% MODEL CONFIDENCE.`
+    : confident
+    ? `${maj.toUpperCase()} · ${(conf*100).toFixed(1)}% MODEL CONFIDENCE.`
+    : `${maj.toUpperCase()} · ${(conf*100).toFixed(1)}% MODEL CONFIDENCE · LIMITED SEPARATION.`;
+  $('bsplit').textContent=`${majN.toLocaleString()}–${minN.toLocaleString()} ROLLOUT SPLIT · `+
+    (hung?'BELOW THE 58% REFUSAL LINE':(confident?'70%+ CONFIDENCE BAND':'58–70% CONFIDENCE BAND'));
+  const topDrivers=drivers.slice(0,3), dmax=Math.max(.005,...topDrivers.map(d=>Math.abs(d.sum)));
+  $('bdrivers').innerHTML=(topDrivers.length?topDrivers.map(d=>{
+    const side=d.sum>0?'a':'b', name=d.sum>0?A:B;
+    return `<div class="bd" data-value="${Math.abs(d.sum).toFixed(6)}">`+
+      `<span>${esc(d.name)}</span><u><i class="${side}" style="width:${(Math.abs(d.sum)/dmax*100).toFixed(1)}%"></i></u>`+
+      `<em class="${side}">${esc(name)}</em></div>`;
+  }).join(''):'<div class="bn">NO FEATURE FAMILY DOMINATED</div>')+
+    `<div class="bc"><span>CANCELLATION</span><u><i style="width:${(cancel*100).toFixed(1)}%"></i></u>`+
+    `<b>${(cancel*100).toFixed(0)}%</b></div>`;
+  const P=HO?precedent(conf):null;
+  $('btrust').innerHTML=P
+    ? `<span><i>SAMPLE</i><u>${P.hit.toLocaleString()} / ${P.n.toLocaleString()}</u>`+
+        `<small>HIGHER SIDE WON</small></span>`+
+      `<span><i>MODEL</i><u>${(P.claim*100).toFixed(1)}%</u><small>AVG CONFIDENCE</small></span>`+
+      `<span><i>ACTUAL</i><u>${(P.rate*100).toFixed(1)}%</u><small>WIN RATE</small></span>`
+    : '<span><i>HOLDOUT</i><u>—</u><small>NOT ATTACHED</small></span>';
+  Object.assign($('brief').dataset,{
+    confidence:conf.toFixed(6),majority:String(majN),minority:String(minN),
+    cancelled:cancel.toFixed(6),
+    drivers:topDrivers.map(d=>Math.abs(d.sum).toFixed(6)).join(',')
+  });
 }
 
 /* ---------- run ---------- */
@@ -2108,7 +2337,7 @@ $('go').onclick=()=>{
 
 function render(A,B,D){
   const jurors=D.jurors, a=SIM.aWins, b=SIM.bWins, p=D.p;
-  $('status').textContent='CONVERGED.';
+  $('status').textContent='1,000 ROLLOUTS COMPLETE.';
   const maj=a>=b?A:B, majN=Math.max(a,b), minr=a>=b?B:A, minN=Math.min(a,b);
   // One threshold drives every label, so the stamp can never contradict the
   // posterior cell. 0.70 is the band the model is measurably 76.8% accurate in.
@@ -2125,12 +2354,11 @@ function render(A,B,D){
   $('verdict').classList.toggle('refused',hung);
 
   const majLbl=$('vmaj').closest('.cell').querySelector('b');
+  majLbl.textContent='Model read';
   if(hung){
-    majLbl.textContent='No call';
-    $('vmaj').textContent='REFUSED'; $('vmaj').className='no';
-    $('vmajs').textContent=`${majN.toLocaleString()}–${minN.toLocaleString()} · TOO CLOSE TO SEPARATE`;
+    $('vmaj').textContent='NO EDGE'; $('vmaj').className='no';
+    $('vmajs').textContent=`${majN.toLocaleString()}–${minN.toLocaleString()} · BELOW 58% CONFIDENCE`;
   } else {
-    majLbl.textContent='Modal outcome';
     $('vmaj').textContent=maj; $('vmaj').className=(maj===B?'r':'l');
     $('vmajs').textContent=`${majN.toLocaleString()} OF ${N_JURORS.toLocaleString()} ROLLOUTS`;
   }
@@ -2146,18 +2374,20 @@ function render(A,B,D){
   $('vmeth').textContent=hung?'—':(top[0]==='DEC'?'DECISION':top[0]);
   $('vmeths').textContent=hung
     ? 'NO CALL MADE · NO METHOD CLAIMED'
-    : `${Math.round(top[1]/majN*100)}% OF OUTCOMES · DECLARED HEURISTIC, NOT FITTED`;
+    : `${Math.round(top[1]/majN*100)}% OF ${majN.toLocaleString()} MAJORITY-SIDE ROLLOUTS · DISPLAY HEURISTIC ONLY`;
 
-  $('vconf').textContent=conf.toFixed(3);
-  $('vconf').className=confident?'r':'';
+  $('vconf').textContent=`${(conf*100).toFixed(1)}%`;
+  $('vconf').dataset.value=conf.toFixed(6);
+  $('vconf').className='';
   $('vconfs').textContent=confident
-    ?`UNPERTURBED · BAND ≥0.70 REALISED ${MET.SURE_ACC}%`
+    ?`70%+ BAND REALISED ${MET.SURE_ACC}%`
     :(hung
-      ?`UNPERTURBED · BAND <${MET.THR} REALISED ${MET.REFUSE_ACC}%`
-      :'UNPERTURBED · BAND 0.58–0.70 · WEAK SEPARATION');
+      ?`BELOW THE 58% REFUSAL LINE · BAND REALISED ${MET.REFUSE_ACC}%`
+      :'BETWEEN 58% AND 70% · LIMITED SEPARATION');
 
   renderAttr(A,B,D);
   renderRead(A,B,conf);
+  renderBrief(A,B,D,{maj,majN,minN,hung,confident,conf});
 
   const dis=jurors.filter(j=>j.win===minr);
   // Drawn from the finishes so the quote has a picture in it — which makes it
@@ -2168,12 +2398,10 @@ function render(A,B,D){
   const exi=jurors.indexOf(ex)+1;
   const H=entropy(conf);
   $('dissent').className='dissent'+(minr===A?' la':'');
-  // The card's line, verbatim, because it is the one anyone reposts — plus the
-  // all-agreed case, which the card cannot currently say out loud.
   $('dhead').textContent = minN===0
     ? 'ALL 1,000 ROLLOUTS AGREED.'
-    : hung ? `${minN.toLocaleString()} ROLLOUTS WENT THE OTHER WAY.`
-           : `ONLY ${minN.toLocaleString()} OF 1,000 TERMINATED FOR ${minr.toUpperCase()}.`;
+    : hung ? `${majN.toLocaleString()}–${minN.toLocaleString()}: THE SIDES OVERLAP.`
+           : `${minN.toLocaleString()} OF 1,000 ROLLOUTS STILL LANDED ON ${minr.toUpperCase()}.`;
   /* The overlap as a gauge against its own ceiling, then one line reading it.
      This was a three-sentence paragraph whose load-bearing content was a single
      bounded quantity — binary entropy, 0 to 1 — sitting in prose beside the two
@@ -2183,12 +2411,12 @@ function render(A,B,D){
      `<div class="er"><span>OVERLAP</span><u><i style="width:${(H*100).toFixed(1)}%"></i></u>`
       +`<b>${H.toFixed(3)} / 1.000</b></div>`;
   $('dtext').innerHTML=hung
-    ? `<b>${majN.toLocaleString()}</b> TO <b>${minN.toLocaleString()}</b> · THREE DECIMALS ON THIS FIGHT IS QUOTING NOISE`
+    ? `<b>${majN.toLocaleString()}–${minN.toLocaleString()}</b> · BELOW THE 58% REFUSAL LINE · THE HONEST RESULT IS NO EDGE`
     : confident
-    ? `<b>${minN.toLocaleString()}</b> IN 1,000 STILL WENT THE OTHER WAY · THIS BAND IS WRONG ROUGHLY ONE FIGHT IN FOUR`
-    : `<b>${minN.toLocaleString()}</b> IN 1,000 WENT THE OTHER WAY · A LEAN, NOT A CALL`;
+    ? `<b>${minN.toLocaleString()}</b> IN 1,000 STILL WENT THE OTHER WAY · THE MINORITY PATH IS MATERIAL, NOT A ROUNDING ERROR`
+    : `<b>${minN.toLocaleString()}</b> IN 1,000 WENT THE OTHER WAY · LIMITED SEPARATION, NOT CERTAINTY`;
   $('dquote').innerHTML=ex
-    ? `RUN ${String(exi).padStart(4,'0')}${exFin?' · DRAWN FROM THE RUNS THAT FINISHED':''} — <em>${ex.win} by ${ex.method==='DEC'?'decision':ex.method}${ex.method==='DEC'?'':', R'+ex.round+' '+ex.time}</em>`
+    ? `ILLUSTRATIVE MINORITY RUN ${String(exi).padStart(4,'0')}${exFin?' · DRAWN FROM THE RUNS THAT FINISHED':''} — <em>${ex.win} by ${ex.method==='DEC'?'decision':ex.method}${ex.method==='DEC'?'':', R'+ex.round+' '+ex.time}</em> · DISPLAY HEURISTIC`
     : 'NO TAIL RECORDED. ALL 1,000 ROLLOUTS AGREED.';
   const methods={}; jurors.forEach(j=>methods[j.method]=(methods[j.method]||0)+1);
   LAST={A,B,a,b,maj,minr,majN,minN,hung,confident,conf,ex,exi,exFin,methods,
@@ -2329,42 +2557,46 @@ function drawCard(){
   else { x.strokeRect(1.5,1.5,lw+37,47); x.fillStyle=R; }
   x.fillText(label,20,34); x.restore();
 
-  // how it ends — real information, and it fills the frame
+  // The ending is illustrative display logic, not a fitted method estimate.
+  // Keep one compact audit row so it cannot outrank the calibrated read.
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,592); x.lineTo(W-M,592); x.stroke();
   x.font='600 15px Barlow'; x.fillStyle=GREY;
-  x.fillText(hung?'T E R M I N A T I O N   —   N O T   C L A I M E D':'T E R M I N A T I O N',M,632);
+  x.fillText('I L L U S T R A T I V E   E N D I N G',M,632);
   x.font='600 14px Barlow'; x.fillStyle='#5a5a64';
-  x.fillText(hung?'THE MODEL REFUSED THIS FIGHT. THE SHAPE BELOW IS THE ROLLOUTS, NOT A CALL.'
-                 :'DECLARED HEURISTIC — NOT A FITTED METHOD MODEL · SCHEDULED 3 ROUNDS',
-             hung?M+330:M+230,632);
+  x.fillText('DISPLAY HEURISTIC · NOT A FITTED METHOD MODEL',M+330,632);
   const order=[['DECISION',LAST.methods.DEC||0],['KO / TKO',LAST.methods['KO/TKO']||0],
                ['SUBMISSION',LAST.methods.SUB||0]].sort((p,q)=>q[1]-p[1]);
-  order.forEach(([name,n],i)=>{
-    const y=670+i*44, pct=n/10;
-    x.font='600 20px Barlow'; x.fillStyle='#b8b8be'; x.fillText(name,M,y+16);
-    const tx=M+190, tw=W-M-70-tx;
-    x.fillStyle='#141418'; x.fillRect(tx,y+2,tw,16);
-    x.fillStyle=i===0?'#e6e6e4':'#43434c'; x.fillRect(tx,y+2,tw*(n/1000),16);
-    x.font='22px Anton'; x.fillStyle=i===0?INK:GREY; x.textAlign='right';
-    x.fillText(Math.round(pct)+'%',W-M,y+18); x.textAlign='left';
-  });
+  const [endName,endN]=order[0];
+  x.font='27px Anton'; x.fillStyle=hung?GREY:INK;
+  x.fillText(hung?'NO ENDING CLAIMED':endName,M,682);
+  if(!hung){
+    const tx=M+240, tw=W-M-70-tx;
+    x.fillStyle='#141418'; x.fillRect(tx,663,tw,18);
+    x.fillStyle='#e6e6e4'; x.fillRect(tx,663,tw*(endN/1000),18);
+    x.font='24px Anton'; x.textAlign='right';
+    x.fillText(`${Math.round(endN/10)}% OF ROLLOUTS`,W-M,682); x.textAlign='left';
+  }
 
   // the dissent — the reason anyone reposts this
-  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,822); x.lineTo(W-M,822); x.stroke();
+  const tailTop=730;
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,tailTop); x.lineTo(W-M,tailTop); x.stroke();
   const MC=(minr===A)?BL:R;
-  x.font='600 15px Barlow'; x.fillStyle=MC; x.fillText('T H E   T A I L',M,862);
-  const l1=hung?`${minN} ROLLOUTS WENT`:`ONLY ${minN} OF 1,000`;
-  const l2=hung?'THE OTHER WAY.':`TERMINATED FOR ${minr.toUpperCase()}.`;
+  x.font='600 15px Barlow'; x.fillStyle=MC; x.fillText('T H E   T A I L',M,tailTop+40);
+  const l1=minN===0?'ALL 1,000 ROLLOUTS':(hung?`${majN}–${minN}: THE SIDES`:`${minN} OF 1,000 ROLLOUTS`);
+  const l2=minN===0?'AGREED.':(hung?'OVERLAP.':`STILL LANDED ON ${minr.toUpperCase()}.`);
   s=Math.min(fit(x,l1,'Anton',W-M*2,56,24),fit(x,l2,'Anton',W-M*2,56,24));
   x.fillStyle=INK; x.font=`${s}px Anton`;
-  x.fillText(l1,M,928); x.fillText(l2,M,928+s+6);
+  const tailHead=tailTop+106;
+  x.fillText(l1,M,tailHead); x.fillText(l2,M,tailHead+s+6);
 
   // the juror line
-  const qy=928+s+40;
+  const qy=tailHead+s+40;
   x.fillStyle='#101014'; x.fillRect(M,qy,W-M*2,78);
   x.fillStyle=MC; x.fillRect(M,qy,4,78);
   x.font='600 15px Barlow'; x.fillStyle=GREY;
-  x.fillText(`RUN ${String(exi).padStart(4,'0')}${exFin?' · DRAWN FROM THE RUNS THAT FINISHED':''}`,M+26,qy+30);
+  x.fillText(ex
+    ? `ILLUSTRATIVE MINORITY RUN ${String(exi).padStart(4,'0')} · DISPLAY HEURISTIC`
+    : 'NO MINORITY RUN · ALL 1,000 AGREED',M+26,qy+30);
   const q=ex?`${ex.win} by ${ex.method==='DEC'?'decision':ex.method}${ex.method==='DEC'?'':', R'+ex.round+' '+ex.time}`:'—';
   const qs=fit(x,q,'Anton',W-M*2-52,30,14);
   x.fillStyle=INK; x.font=`${qs}px Anton`; x.fillText(q,M+26,qy+62);
@@ -2379,7 +2611,7 @@ function drawCard(){
   const ty=qy+124;
   x.font='600 27px Barlow'; x.fillStyle='#b8b8be';
   x.fillText(hung?'This model refuses this fight.'
-    :(confident?'Maximum separation the model produces.':'A lean. Not a call.'),M,ty);
+    :(confident?'Higher separation, never certainty.':'Limited separation.'),M,ty);
   const P=LAST.prec;
   if(P){
     // Past the top of the curve there is no band left and precedent() falls back
@@ -2387,19 +2619,19 @@ function drawCard(){
     // caption, so it says so in the sentence instead. "It read 20 fights this
     // way" would be a quiet overstatement of how common a 0.90 reading is.
     const pl=P.widened
-      ? `Its ${P.n} closest held-out reads to this one: `
-        +`the favourite won ${P.hit} — ${(P.rate*100).toFixed(1)}%.`
-      : `It read ${P.n.toLocaleString()} held-out fights this way. `
-        +`The favourite won ${P.hit.toLocaleString()} — ${(P.rate*100).toFixed(1)}%.`;
+      ? `Among the ${P.n} closest held-out confidence readings, `
+        +`the higher-probability side won ${P.hit} — ${(P.rate*100).toFixed(1)}%.`
+      : `Among ${P.n.toLocaleString()} held-out fights at similar confidence, `
+        +`the higher-probability side won ${P.hit.toLocaleString()} — ${(P.rate*100).toFixed(1)}%.`;
     x.fillStyle=GREY;
     x.font=`600 ${fit(x,pl,'Barlow',W-M*2,27,17)}px Barlow`;
     x.fillText(pl,M,ty+34);
   }
   x.font='600 15px Barlow'; x.fillStyle='#5a5a64';
   x.fillText(hung
-    ? `Under ${MET.THR} it realised ${MET.REFUSE_ACC}% across ${MET.N} held-out fights. `
-      +`That is why it declines.`
-    : `Unperturbed posterior ${conf.toFixed(3)} · ${majN}–${minN} under the declared `
+    ? `Within the ${MET.N}-fight holdout, the ${MET.REFUSE}% below ${MET.THR} realised `
+      +`${MET.REFUSE_ACC}%. That is why it declines.`
+    : `Model confidence ${(conf*100).toFixed(1)}% · ${majN}–${minN} under the declared `
       +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+64);
 
   // footer
@@ -2453,9 +2685,8 @@ $('copy').onclick=async()=>{
 };
 
 /* ---------- EVENT MODE ------------------------------------------------------
-   A single matchup is what every other tool in this category produces. What
-   none of them produce is a model that commits to a whole card in public and
-   marks the fights it will not call.
+   A whole-card receipt turns isolated matchup reads into a repeatable pre-card
+   ritual and keeps every refusal visible.
 
    The threshold is not a design flourish. Across the 3,404 held-out fights,
    everything under 0.58 realised 52.0% — and under 0.55 it realised exactly
@@ -2492,7 +2723,12 @@ function runEvent(){
     w.innerHTML=bad.map(p=>`DECLINED — ${p.err}<br><span style="color:var(--grey)">${
       p.raw.replace(/</g,'&lt;')}</span>`).join('<br>');
   } else w.classList.remove('on');
-  if(!good.length){ $('eout').classList.remove('on'); $('eacts').classList.remove('on'); return; }
+  if(!good.length){
+    EV.rows=[]; EV.name=''; EV.dec=0;
+    $('eout').innerHTML=''; $('eout').classList.remove('on');
+    $('eacts').classList.remove('on'); $('esaved').textContent='';
+    return;
+  }
 
   EV.name=$('ename').value.trim()||'UNTITLED CARD';
   EV.rows=good.map(p=>{
@@ -2611,14 +2847,14 @@ function drawEvent(){
   x.font='600 20px Barlow'; x.fillStyle=GREY;
   x.fillText('REFUSED — THE MODEL HAS NO EDGE ON THESE',M+bw2+20,fy+62);
   x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
-  x.fillText('BELOW 0.58 IT REALISED 52.0% ACROSS 3,404 HELD-OUT FIGHTS. THAT IS WHY IT DECLINES THEM.',M,fy+92);
+  x.fillText('WITHIN THE 3,404-FIGHT HOLDOUT, THE 40.4% BELOW 0.58 REALISED 52.0%. THAT IS WHY IT DECLINES.',M,fy+92);
 
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();
   mark(22,H-70,HOME.toUpperCase());
   x.font='600 14px Barlow'; x.fillStyle=GREY;
   x.fillText('UFCSTATS VIA THE GRECO1899 MIRROR · NOT AFFILIATED WITH UFC, ZUFFA OR TKO',M,H-46);
   x.textAlign='right';
-  x.fillText('ROLLING-ORIGIN CV · BRIER 0.230 · 67.2% ON THE 60% IT CALLS',W-M,H-70);
+  x.fillText('ROLLING-ORIGIN CV · BRIER 0.230 · 67.2% ON THE 59.6% IT CALLS',W-M,H-70);
   x.fillText('NOT A PREDICTION. A DISTRIBUTION.',W-M,H-46);
   x.textAlign='left';
 
@@ -2650,7 +2886,13 @@ function receipt(){
   },null,2);
 }
 
-$('event').onclick=()=>{ $('evpanel').classList.add('on'); $('ecard').focus(); };
+const openEvent=()=>{ $('evpanel').classList.add('on'); $('ecard').focus(); };
+$('event').onclick=openEvent;
+$('eventhero').onclick=openEvent;
+$('eventresult').onclick=()=>{
+  if(LAST&&!$('ecard').value.trim()) $('ecard').value=`${LAST.A} vs ${LAST.B}`;
+  openEvent();
+};
 $('eclose').onclick=()=>$('evpanel').classList.remove('on');
 $('erun').onclick=runEvent;
 $('esave').onclick=async()=>{
@@ -2674,7 +2916,7 @@ $('ejson').onclick=async()=>{
 // Versioned. The unversioned key meant the method screen was shown once per
 // browser, ever — so rewriting it changed nothing for anyone who had already
 // opened the file. Bump the suffix whenever this screen's claims change.
-const MKEY='fightsim.method.v2';
+const MKEY='fightsim.method.v3';
 const seen=()=>{ try{ return localStorage.getItem(MKEY)==='1'; }catch(e){ return false; } };
 if(seen()) $('intro').classList.remove('on');
 $('ienter').onclick=()=>{

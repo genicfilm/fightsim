@@ -13,3 +13,6 @@ tools/.shots-out/
 # Stray exports and scratch images — never part of the product
 ChatGPT Image*.png
 *.tmp.png
+
+# Private strategy docs — publish mirrors HEAD to the public repo; these stay out
+UPGRADE-GUIDE.md

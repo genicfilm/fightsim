@@ -1,20 +1,24 @@
 # FIGHT SIM
 
-Two fighters go in. The model runs the matchup 1,000 times and reports the
-distribution — never a call. The runs that go the other way are the point.
+**See what the record separates — and what it does not.**
 
-**It refuses 40% of fights.** On those it measured itself at 52.0%, and under
-0.55 it realised *exactly* 50.0% — it has no skill there, and says so. On the
-60% it will call, it is right 67.2% of the time. Every competing tool in this
-category emits a confident winner on every fight; none of their scoring systems
-can express "no edge". That is the product.
+FIGHT SIM is a line-blind pre-fight evidence check for UFC fans. Choose two
+fighters; it compares their career states, runs the matchup 1,000 times, and
+reports the distribution — including every run that lands on the other side.
+
+**It refuses 40.4% of held-out fights.** Those realised 52.0%, and the fights
+below 0.55 realised *exactly* 50.0% — no measurable separation, stated plainly.
+The 59.6% it retains realised 67.2%. The refusal, its measured record, and the
+pre-card event receipt are the product.
 
 **Open `fightsim/FightSim.html` by double-clicking it.** No server, no
 terminal. Everything is inlined into that one file.
 
 Full documentation: **[`fightsim/README.md`](fightsim/README.md)** — the model,
-its measured limits, the sim, the attribution panel, the cross-division prior,
-career versions, the palette, and the share card.
+its measured limits, smart search, the short Matchup Read, the sim, attribution,
+the cross-division prior, career versions, the palette, and the share card.
+Product direction and future boundaries live in
+**[`fightsim/PRODUCT-BRIEF.md`](fightsim/PRODUCT-BRIEF.md)**.
 
 *Previously FIGHT JURY, then VARIANCE; both retired 2026-07-24. The jury
 metaphor described the wrong machine — this is a simulation, not a
@@ -29,11 +33,13 @@ fightsim/
   FightSim.html    the built single file — this is the one you open
   index.html       editable source
   data.json        2,290 fighters x 8,880 career versions + the model
+  aliases.json     reviewed search aliases, keyed by canonical fighter name
   fonts/           Anton + Barlow Condensed
   README.md        the real documentation
+  PRODUCT-BRIEF.md durable product direction and future boundaries
 tools/
   build-data.py       rebuilds data.json from public UFC data (Python)
-  build-fightsim.mjs  bundles index.html + data.json + fonts -> FightSim.html
+  build-fightsim.mjs  validates aliases; bundles source + data + aliases + fonts
   chromium-path.mjs   locates Chromium for Playwright testing
   test.mjs            the regression suite (npm test)
   shots.mjs           visual regression (npm run shots)
@@ -58,10 +64,10 @@ rasterises differently and turns all eight screens red for no real reason.
 ## Rebuilding and testing
 
 ```bash
-# after editing index.html or data.json
+# after editing index.html, data.json, aliases.json or fonts
 npm run build:fightsim
-npm test                 # 58 assertions, drives the built file over file://
-npm run shots            # 8 screens vs tools/baseline/
+npm test                 # drives the built file over file://
+npm run shots            # screenshots vs tools/baseline/
 
 # to refresh the underlying UFC data (new events, new fighters)
 python3 -m venv .venv
@@ -70,14 +76,29 @@ python3 -m venv .venv
 npm run build:fightsim
 ```
 
-## What this is not
+## What it does and does not read
 
-It is not a prediction tool and must never be sold as one. ~62% is the accuracy
-ceiling of public fight statistics; betting markets reach 65–70% because they
-price injuries, camps and weight cuts, and that information is in no box score.
-This model never sees a betting line, which is the whole reason it sits where it
-sits. The claim here is **calibration** — when it says 0.65–0.75, the fighter
-wins 68.9% of the time — and the refusals that follow from it.
+FIGHT SIM is a distribution, not a winner service. It reads the 34 shipped
+career features and never sees a betting line. Injuries, camps, weight cuts and
+social chatter are not scored; the short Matchup Read says so rather than
+implying knowledge the model does not have.
+
+Its claims are the measurements this repository rebuilds: rolling-origin
+accuracy, calibration, the refusal rate, what those refusals realised, and the
+event ledger.
+
+## Smart search
+
+Canonical fighter names resolve after case, spacing, punctuation and diacritic
+normalization. Reviewed nicknames such as `Korean Zombie` live in
+`fightsim/aliases.json`; they are UI metadata, not model data. A typo can appear
+as a **CLOSE MATCH** in autocomplete, but fuzzy matching never silently selects
+a fighter. The user must confirm a suggestion, and unresolved names are
+declined.
+
+The build validates every alias target and normalized key, then inlines
+`aliases.json` beside `data.json` in the offline file. Invalid, empty or
+ambiguous aliases stop the build.
 
 ## Data
 
@@ -86,12 +107,11 @@ wins 68.9% of the time — and the refusals that follow from it.
 mirror. This project reads that mirror and never touches UFC systems.
 
 Not affiliated with, endorsed by, or sponsored by the UFC, Zuffa LLC or TKO
-Group. Fight statistics are facts and are not copyrightable; what ships in
-`data.json` is derived features — rolling averages, Elo, form, layoff, age —
-not a copy of the source tape.
+Group. What ships in `data.json` is derived features — rolling averages, Elo,
+form, layoff and age — rather than source pages.
 
 ---
 
 It is L2 logistic regression over 34 engineered features. The interface speaks
 in Monte Carlo rollouts, posteriors, log-odds and binary entropy because that is
-literally what runs. It must never imply a neural network or deep learning.
+literally what runs. The copy must not imply a different method.

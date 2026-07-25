@@ -1,7 +1,15 @@
 # FIGHT SIM
 
-Two fighters go in. The model runs the matchup 1,000 times and reports the
-distribution — never a call. The runs that go the other way are the point.
+**See what the record separates — and what it does not.**
+
+FIGHT SIM is a line-blind pre-fight evidence check for UFC fans. Two fighters go
+in; the model runs the matchup 1,000 times and reports the distribution,
+including every run that lands on the other side. When the historical record
+does not separate the matchup, it says **NO EDGE**.
+
+The durable product direction is in
+[`PRODUCT-BRIEF.md`](PRODUCT-BRIEF.md). This file documents the implementation,
+measured record, and runtime constraints.
 
 *Previously FIGHT JURY, then VARIANCE. The courtroom framing went because it
 described the wrong machine — these are Monte Carlo rollouts over a calibrated
@@ -13,23 +21,24 @@ the product was using anyway.*
 ## Run it
 
 **Double-click `FightSim.html`.** That is it. No server, no terminal, no
-localhost. Everything — model, 2,290 fighters, all four fonts — is inlined into
-that one 2.6 MB file, so it runs straight off disk.
+localhost. Everything — model, 2,290 fighters, reviewed aliases, and all four
+fonts — is inlined into that one file, so it runs straight off disk.
 
 ```
 C:\Users\ryank\Documents\UFC REF\fightsim\FightSim.html
 ```
 
-Rebuild it after any change to `index.html` or `data.json`:
+Rebuild it after any change to `index.html`, `data.json`, `aliases.json`, or the
+fonts:
 
 ```bash
 npm run build:fightsim
 ```
 
-`index.html` is the editable source and fetches `data.json`, so it needs a real
-server (`python3 -m http.server 8931`). Under WSL2, Windows will often fail to
-forward `localhost` — use the WSL address (`hostname -I`) or just work from the
-built file.
+`index.html` is the editable source and references sibling `data.json` and
+`aliases.json` files. The development and test contract is still the built
+`FightSim.html` over `file://`: rebuild it and open that file. Do not introduce
+a development server.
 
 No backend, no API, no database, no per-query cost. It can be hosted free
 anywhere, or emailed to someone as a single attachment.
@@ -37,19 +46,21 @@ anywhere, or emailed to someone as a single attachment.
 ## What it actually is
 
 - `FightSim.html` — the built single file. **This is the one you open.**
-- `index.html` — editable source. Autocomplete, tale of the tape, the sim,
-  attribution, the tail.
+- `index.html` — editable source. Search, tale of the tape, the sim, the short
+  Matchup Read, calibration and fighter history, attribution, and the tail.
 - `data.json` — 2,290 fighter career states, the model (coefficients, means,
   scales, imputation values), and the rolling-origin holdout itself: 3,404 real
   bouts with the out-of-fold posterior the model produced for each and what
   actually happened. 2.0 MB.
+- `aliases.json` — reviewed search aliases keyed by canonical fighter name. UI
+  metadata only; it does not change `data.json` or the model.
 - `fonts/` — Anton + Barlow Condensed.
-- `../tools/build-fightsim.mjs` — bundles the three into `FightSim.html`.
+- `../tools/build-fightsim.mjs` — validates aliases and bundles the source,
+  data, aliases, and fonts into `FightSim.html`.
 
 The model is **logistic regression**, deliberately. A gradient-boosted ensemble
 scored the same on held-out data (61.5% vs 61.2%), and the linear model ports to
-twenty lines of browser JavaScript and can be read by a human. The UFC's rankings
-are a black box. This one isn't.
+twenty lines of browser JavaScript and can be audited term by term.
 
 ## The model
 
@@ -78,10 +89,9 @@ Nothing on screen states a number this repository cannot rebuild.
 
 **The refusals are the credential.** Under 0.55 this model realised *exactly*
 50.0% across a quarter of the held-out set — it has no skill there, measurably,
-and saying so is the one thing no competitor's scoring system can express. The
-40% it declines realised 52.0%; the 60% it keeps realised 67.2%, which is inside
-the range closing betting lines achieve. It is not a weak model. It is a model
-that knows which fights it cannot call.
+and says so. The 40.4% it declines realised 52.0%; the 59.6% it retains realised
+67.2%. The threshold is useful because both sides of it are measured and remain
+visible.
 
 **Two numbers here were wrong until they were computed.** The Brier was
 published as 0.232 and is 0.2299. "Calibration error ≤2 points in every band"
@@ -99,8 +109,9 @@ evidence base.
 
 Ceiling check: adding Elo, gradient boosting, recency weighting, durability and
 form all landed within half a point of each other. The signal in public fight
-statistics runs out around 62%. Betting markets reach 65–70% because they price
-injuries, camps and weight cuts — information that is not in any box score.
+statistics runs out around 62% in these experiments. FIGHT SIM does not score
+injuries, camps, weight cuts, betting lines, or social chatter; the result says
+so rather than implying that information is present.
 
 ## The share card
 
@@ -127,16 +138,70 @@ whichever needs to be smaller, so they stay optically equal.
 
 ## Rules this thing lives by
 
-1. **Never call it a prediction.** It is a distribution. The footer says so, and
-   the word does not belong in this file either.
+1. **It is a distribution.** Do not market it as a guaranteed winner. The footer
+   statement stays.
 2. **The tail is the product.** The minority mass is the shareable object.
 3. **INDETERMINATE is a feature.** Under a 0.58 posterior it says there is no
    separation instead of manufacturing a winner.
 4. **No UFC record, no entry.** Fighters outside the index are declined rather
    than guessed at.
 5. **No method inflation.** It is L2 logistic regression over 34 engineered
-   features. The copy may be technical — it must never imply a neural network,
-   deep learning, or any method this does not use.
+   features. The copy may be technical, but it must not imply a different
+   method.
+
+## Smart search and reviewed aliases
+
+The search has two distinct jobs: resolve names the index can identify
+unambiguously, and suggest possible matches without silently guessing.
+
+Canonical names are normalized with the same rules in single-matchup and EVENT
+mode:
+
+- trim and lowercase;
+- Unicode NFKD decomposition and diacritic removal;
+- reviewed folding for letters such as `ł`, `ð`, `ø`, `æ`, `œ`, and `ß`;
+- punctuation converted to spaces;
+- repeated spaces collapsed;
+- a compact form with spaces removed for inputs such as `JonJones`.
+
+An exact canonical name, a unique normalized canonical form, or an exact
+reviewed alias can resolve automatically. Prefix and substring matches populate
+autocomplete. A bounded adjacent-transposition edit distance adds **CLOSE
+MATCH** suggestions for likely typos, but fuzzy results never resolve on their
+own: the user must select a suggestion. If the typed value still does not
+resolve, the fighter is declined rather than guessed.
+
+Reviewed aliases must identify one fighter. Shared fan terms such as a nickname
+used by multiple fighters are intentionally omitted rather than silently routed;
+the canonical names remain available as explicit suggestions.
+
+`aliases.json` is the only source for nicknames and alternate public names. It
+is keyed by the exact canonical name in `data.json`, for example:
+
+```json
+{
+  "Chan Sung Jung": [
+    "The Korean Zombie",
+    "Korean Zombie",
+    "TKZ"
+  ]
+}
+```
+
+Aliases are reviewed UI metadata, not generated fight data. Do not add them to
+`data.json`. At build time, `tools/build-fightsim.mjs`:
+
+1. parses `data.json` and `aliases.json`;
+2. verifies every canonical target exists;
+3. rejects empty, non-string, and normalized ambiguous aliases or canonical
+   search collisions;
+4. escapes a closing script sequence;
+5. inlines the validated JSON as `<script id="fjalias"
+   type="application/json">` beside `fjdata`.
+
+An invalid alias exits the build non-zero. The source page loads `data.json` and
+`aliases.json` together; the built file uses the two inline JSON blocks and
+performs no network request.
 
 ## EVENT mode, and the ledger
 
@@ -144,8 +209,9 @@ whichever needs to be smaller, so they stay optically equal.
 returns one image: every fight, the posterior, and the ones it **refuses**
 stamped in the open. Fighters resolve through the same folding index the single
 matchup uses, and anything not in the file is declined by name rather than
-guessed at. Versions are **latest**, not prime: an upcoming card is fought by
-whoever these people are now.
+guessed at. The primary action after a single result opens EVENT mode with that
+matchup already prefilled. Versions are **latest**, not prime: an upcoming card
+is fought by whoever these people are now.
 
 *Copy the receipt* emits a timestamped JSON record — model shape, every
 posterior, every refusal, `winner: null`. Commit it to `ledger/` **before** the
@@ -160,8 +226,9 @@ is only honest if the refusals can be shown to have been coin flips. If they
 quietly outperform, the threshold is wrong, and the table is how anyone —
 including you — finds that out.
 
-Everything in this category publishes a backtest. A backtest is measured on data
-the author already had. This is the other thing.
+The ledger is deliberately separate from the frozen holdout. It records the
+artifact's readings before a future card and grades the unchanged receipt after
+the event.
 
 ## Career versions
 
@@ -278,45 +345,70 @@ about two seconds and skips the per-draw animation.
 
 ## The method screen
 
-A skeptic needs to know why this is different before they trust a number from
-it, so the page opens on one screen with three beats and no marketing:
+A skeptic needs to know what the number means before trusting it, so the page
+opens on one screen with three measured beats:
 
 - **1,000** — Monte Carlo rollouts through a posterior fit on 6,457 UFC bouts.
 - **ROLLING ORIGIN** — every feature computed only from bouts that had already
   happened; train on everything before year N, test on year N.
-- **40%** — of fights it refuses. On those it measured itself at 52.0%; on the
-  60% it will call it is right 67.2% of the time. Forced to call everything,
+- **40.4%** — of fights it refuses. On those it measured itself at 52.0%; on the
+  59.6% it will call it is right 67.2% of the time. Forced to call everything,
   61.2%.
 
 The pitch is not a better model — it is logistic regression, and a
 gradient-boosted version scored the same. It is that **this one refuses the
 fights it cannot call, and publishes what the refusals were worth.**
 
-The screen used to read *"Fight models advertising 75% random-split their
-data"*. That was an unsubstantiated claim about third parties sitting on the one
-screen built to disarm a sceptic, and it has been removed. The mechanism is
-provable and the accusation was not: a random split does score higher by leaking
-a fighter's future into their own past, and *these numbers are lower because
-they are real.*
+The screen states the mechanism, not a claim about anyone else. A random split
+does score higher here by leaking a fighter's future into their own past.
+Rolling origin prevents that leakage: train before year N, read year N. These
+numbers are lower because they are real.
 
 Shown once, remembered in `localStorage`, reopenable from `METHOD` in the
 masthead, dismissable with `Escape`.
 
-## THE READ
+## The short Matchup Read
+
+The result used to make the reader assemble a conclusion across the rollout
+tally, calibration panel, and grouped attribution terms. The next whole-card
+action now appears immediately after the verdict; a 20-second brief follows and
+answers four questions from values already computed elsewhere on the page:
+
+1. **Does the record separate the matchup?** The headline distinguishes
+   `REFUSED · NO EDGE`, modest separation, and stronger separation from the
+   analytic model confidence; the rollout split is supporting evidence rather
+   than the threshold-bearing headline.
+2. **What moved it?** The three largest of the six grouped attribution subtotals
+   point toward the relevant corner on one shared bar scale. A second bar shows
+   how much of the gross signal cancels.
+3. **How did similar confidence hold up?** The brief prints the held-out hit
+   count, sample size, realised rate, and average model confidence from the same
+   local band used below.
+4. **What was not scored?** Injuries, camps, weight cuts, betting lines, and
+   social chatter are named as missing rather than silently implied.
+
+The brief introduces no new estimator and no new claim: its headline is the
+analytic confidence that drives the threshold, its split is the 1,000-rollout
+distribution, its driver bars come from the grouped terms, and its history comes
+from the shipped holdout. The suite asserts both the shared driver scale and the
+cancellation gauge against the values they print.
+
+## Calibration and fighter history
 
 The product used to end at the tail: one posterior, one shareable line, and an
 eight-row attribution panel. Everything else the model knew about the matchup
 was computed and thrown away, so the answer arrived and nothing followed it.
-THE READ is that reasoning put back, in three panels.
+The deeper Matchup Read puts that reasoning back in three panels:
 
-### Precedent — the held-out record at this reading
+### Calibration at this confidence
 
 `data.json` ships the holdout rather than a summary of it. Given the posterior on
 screen, the browser takes every held-out bout the model read within **±0.025
-confidence** of it and reports how often the favourite actually won.
+confidence** of it and reports how often the higher-probability side actually
+won.
 
 That is not a second model or a new estimate. It is the published calibration
-curve sliced locally, off the same predictions the 61.2% comes from — which is
+curve sliced locally, off the same held-out readings the 61.2% comes from — which is
 why `tools/build-data.py` prints a reproduction check into `tools/metrics.txt`
 and `npm test` fails if the shipped table stops matching it. Two numbers on
 screen and one table behind them; if they ever disagree the panel is fiction.
@@ -326,14 +418,13 @@ small `n` and says so. Past the top of the curve there is no window left, so it
 falls back to the nearest 20 and prints the range it actually covered — the page
 in its caption, the card in its sentence.
 
-**It is drawn, not stated.** The panel used to be three large numbers under six
-lines of caption explaining what they meant. It is now a plot of realised against
-claimed across all seven bands, and the caption is the axes: the dots climb, they
-sit on the `y = x` diagonal rather than above it, the refusal zone is shaded, and
-a caret marks where this fight landed. Two things a reader gets in one look and
-could not get from the numbers — that the model earns its confidence, and that
-below the threshold there is nothing there. Position encoding, so the truncated
-y-axis is legitimate; it is labelled at 50%, 70% and 88%.
+**It is drawn, not merely stated.** The plot shows realised rate against claimed
+confidence across all seven bands. The `y = x` diagonal is the calibration
+reference, the refusal zone is shaded and labelled, and a caret marks this fight. The note
+under the panel states its scope: this checks whether the model historically
+earned this confidence; it is not extra evidence about either fighter. Position
+encodes the comparison, so the truncated y-axis is legitimate; it is labelled at
+50%, 70% and 88%.
 
 The curve is drawn at **real pixel size**, never through a responsive `viewBox`.
 A scaled viewBox scales the type with the geometry: axis labels set at 8.5px for
@@ -342,20 +433,21 @@ a 1,064px desktop rendered at 4px on a 390px phone. `#precfig` lives inside
 measure at render time — `drawCal()` runs once the verdict is up, and again on
 resize. The suite asserts the `viewBox` has not come back.
 
-It also quotes back one fight it got right and one it got wrong from the same
-band. Those are picked by the **weaker fighter's Elo going in**, never by date:
-the point of quoting a fight is that you might remember it, and the most recent
-bout in any band is whichever prelim opened the newest card. Deterministic, so
-`npm run shots` can diff a screen containing them.
+Three summary cells make the local slice explicit: held-out sample size, average
+model confidence, and realised rate for the higher-probability side. They replace
+named hit/miss examples, which were memorable but unrelated to the current
+fighters and made a calibration check look like anecdotal evidence.
 
 This is where the refusal stops being a policy and becomes a receipt. Deep in
 the refusal band the model's own held-out record is a coin flip, on screen, on
 that fight — and the suite asserts it.
 
-### Its record on these two
+### Model history with these fighters
 
 The same table, sliced by fighter instead of by posterior: how many held-out
-bouts each corner appears in and how many the model read correctly.
+bouts each corner appears in and how many the model read correctly. The panel
+labels itself as a fighter-specific audit and states that it does not change the
+matchup above.
 
 Two marks on one 0–1 track — hollow for what the model claimed, filled for what
 happened — and **no adjective**. An earlier draft said this in prose and called
@@ -477,8 +569,11 @@ numpy, scikit-learn and pyarrow, and it writes `fightsim/data.json` in place:
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install pandas numpy scikit-learn pyarrow
 ./.venv/bin/python tools/build-data.py
-npm run build:fightsim      # data.json is only inlined at build time
+npm run build:fightsim      # validates aliases, then inlines data + aliases
 ```
+
+`build-data.py` does not create or modify `aliases.json`. Search aliases remain
+a separate reviewed source and are validated only when `build:fightsim` runs.
 
 It refuses to run if `fightsim/` is missing rather than creating the folder —
 after the rename it was still pointed at `fightjury/`, so it happily wrote a

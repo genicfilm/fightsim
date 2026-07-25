@@ -36,10 +36,12 @@ const CONTRACT = [
   "stage", "na", "nb", "wgap", "pstep", "plabel", "pnum", "prail", "beam",
   "ca", "cb", "split", "status", "ret", "stream",
   "verdict", "stamp", "vmaj", "vmajs", "vmeth", "vmeths", "vconf", "vconfs",
+  "brief", "bline", "bsplit", "bdrivers", "btrust", "bblind",
   "attr", "attrsub", "attrcx", "attrows", "attrl", "attrr",
   "read", "rmeta", "prec", "prechead", "preccap", "precfig", "precex", "trk", "trka", "trkb",
   "dissent", "dhead", "dtext", "dquote", "dent", "save", "copy", "again", "saved", "refuse",
-  "event", "evpanel", "ename", "ecard", "ewarn", "erun", "eout", "esave", "ejson", "eclose", "esaved",
+  "event", "eventhero", "eventresult", "evpanel", "ename", "ecard", "ewarn", "erun",
+  "eout", "esave", "ejson", "eclose", "esaved",
 ];
 
 const errors = [];
@@ -75,6 +77,11 @@ ok("the stated feature count is the model's own column count",
 
 ok("method screen up on a cold profile", await page.$eval("#intro", (e) => e.classList.contains("on")));
 ok("method screen is opaque", await page.$eval("#intro", (e) => getComputedStyle(e).opacity === "1"));
+const introBalance = await page.$eval("#intro .ibox", (e) => {
+  const r = e.getBoundingClientRect();
+  return Math.abs(r.top - (innerHeight - r.bottom));
+});
+ok("method content is vertically centered", introBalance < 80, `${introBalance.toFixed(1)}px imbalance`);
 await page.click("#ienter");
 ok("ENTER dismisses and focuses the first corner",
    !(await page.$eval("#intro", (e) => e.classList.contains("on"))) &&
@@ -127,7 +134,7 @@ const inv = await page.evaluate(() => {
     emp: SIM.aWins / (SIM.aWins + SIM.bWins),
     rail: document.getElementById("prail").style.width,
     rafStopped: SIM.raf === 0,
-    conf: +document.getElementById("vconf").textContent,
+    conf: +document.getElementById("vconf").dataset.value,
     stamp: document.getElementById("stamp").textContent,
     attrsub: document.getElementById("attrsub").textContent,
     attrRows: document.querySelectorAll("#attrows .ar").length,
@@ -144,6 +151,43 @@ ok("stamp matches its band",
    inv.conf < 0.58 ? inv.stamp === "REFUSED · NO EDGE"
    : inv.conf >= 0.70 ? inv.stamp === "CONVERGED" : inv.stamp === "LOW SEPARATION", inv.stamp);
 ok("attribution lists terms and prints Σ", inv.attrRows > 0 && /Σ INCL\. INTERCEPT/.test(inv.attrsub));
+
+const brief = await page.evaluate(() => {
+  const box = document.getElementById("brief");
+  const conf = +box.dataset.confidence;
+  const P = precedent(conf);
+  return {
+    majority: +box.dataset.majority, minority: +box.dataset.minority,
+    line: document.getElementById("bline").textContent,
+    split: document.getElementById("bsplit").textContent,
+    trust: document.getElementById("btrust").textContent,
+    cards: box.querySelectorAll(".bgrid > div").length,
+    pN: P.n, pHit: P.hit,
+    conf,
+    cancelled: +box.dataset.cancelled,
+    cancelBar: parseFloat(box.querySelector(".bc u i").style.width) / 100,
+    drivers: [...box.querySelectorAll(".bd")].map((d) => ({
+      value: +d.dataset.value,
+      bar: parseFloat(d.querySelector("u i").style.width),
+    })),
+  };
+});
+ok("the short read leads with the threshold-bearing confidence",
+   brief.line.includes(`${(brief.conf * 100).toFixed(1)}% MODEL CONFIDENCE`) &&
+   brief.split.includes(`${brief.majority.toLocaleString()}–${brief.minority.toLocaleString()}`),
+   `${brief.line} / ${brief.split}`);
+ok("the short read's calibration receipt comes from the shipped holdout",
+   brief.trust.includes(`${brief.pHit.toLocaleString()} / ${brief.pN.toLocaleString()}`),
+   brief.trust);
+ok("the short read separates drivers, calibration, and excluded context", brief.cards === 3);
+ok("the short read's cancellation gauge matches the value it prints",
+   near(brief.cancelBar, brief.cancelled, 0.002),
+   `${brief.cancelBar} vs ${brief.cancelled}`);
+const briefDriverMax = Math.max(...brief.drivers.map((d) => d.value), 0.005);
+ok("the short read's driver bars share one honest scale",
+   brief.drivers.length > 0 && brief.drivers.every((d) =>
+     near(d.bar, d.value / briefDriverMax * 100, 0.2)),
+   JSON.stringify(brief.drivers));
 
 // The split bar is the page's copy of the card's clearest picture of the
 // distribution. It must agree with the tally, and it must be full at the end —
@@ -244,19 +288,17 @@ ok("the cancelled share matches the two bars",
 const ho = await page.evaluate(() => {
   let right = 0;
   for (const f of HO.fights) if ((f[3] >= 5000) === (f[4] === 1)) right++;
-  const conf = +document.getElementById("vconf").textContent;
-  const head = document.getElementById("prechead").textContent;
-  const cap = document.getElementById("preccap").textContent;
-  const m = head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.\s*THE FAVOURITE WON ([\d,]+) — ([\d.]+)%\./);
-  const band = cap.match(/CONFIDENCE ([\d.]+)–([\d.]+)/);
+  const conf = +document.getElementById("vconf").dataset.value;
+  const head = document.getElementById("prechead");
   const svg = document.querySelector("#precfig svg");
   const B = calBands();
   return {
     rows: HO.fights.length, width: HO.fights[0].length, acc: right / HO.fights.length,
     unknown: HO.names.filter((n) => !(n in FI)).length,
-    conf, headN: m && +m[1].replace(/,/g, ""), headHit: m && +m[2].replace(/,/g, ""),
-    realised: m && +m[3],
-    lo: band && +band[1], hi: band && +band[2],
+    conf, headN: +head.dataset.n, headHit: +head.dataset.hit,
+    realised: +head.dataset.rate * 100,
+    claim: +head.dataset.claim, lo: +head.dataset.lo, hi: +head.dataset.hi,
+    summaryCells: document.querySelectorAll("#precex .ps").length,
     // the thesis, checkable: at the bottom of the refusal band the model's own
     // held-out record is a coin flip
     deep: precedent(0.52).rate,
@@ -283,12 +325,13 @@ const ho = await page.evaluate(() => {
 ok("the shipped holdout is one row per real bout, six fields wide",
    ho.width === 6 && ho.rows > 0, `${ho.rows}×${ho.width}`);
 ok("every fighter in the holdout is in the index", ho.unknown === 0, `${ho.unknown} unknown`);
-ok("the precedent headline is arithmetically consistent with itself",
+ok("the similar-confidence summary is arithmetically consistent with itself",
    ho.headN > 0 && ho.headHit <= ho.headN &&
    near((ho.headHit / ho.headN) * 100, ho.realised, 0.06),
    `${ho.headHit}/${ho.headN} vs ${ho.realised}%`);
 ok("the quoted band brackets this fight's confidence",
    ho.lo <= ho.conf && ho.hi >= ho.conf, `${ho.lo}–${ho.hi} vs ${ho.conf}`);
+ok("the calibration summary is sample, model confidence, and actual rate", ho.summaryCells === 3);
 ok("the calibration curve plots every band and drops none",
    ho.dots === ho.bands && ho.bands >= 6 && ho.binned === ho.rows,
    `${ho.dots} dots / ${ho.bands} bands / ${ho.binned} of ${ho.rows} binned`);
@@ -322,6 +365,11 @@ ok("THE READ sits after the tail, not in front of it",
 console.log("\nCard & reset");
 const card = await page.evaluate(async () => { await document.fonts.ready; const c = drawCard(); return [c.width, c.height]; });
 ok("card exports at 2160×2700", card[0] === 2160 && card[1] === 2700, card.join("×"));
+await page.click("#eventresult");
+ok("the result's next action opens EVENT mode with this matchup prefilled",
+   await page.$eval("#evpanel", (e) => e.classList.contains("on")) &&
+   (await page.$eval("#ecard", (e) => e.value)) === `${await page.evaluate(() => LAST.A)} vs ${await page.evaluate(() => LAST.B)}`);
+await page.click("#eclose");
 await page.click("#again");
 await page.waitForTimeout(400);
 ok("reset restores the entry screen",
@@ -344,8 +392,14 @@ ok("switch stance is not mislabelled orthodox", sw.some((r) => r.includes("SWITC
 await rows("Jon Jones", "Jon Jones");
 ok("a fighter cannot fight himself", await page.$eval("#go", (e) => e.disabled));
 await rows("Zzz Not A Fighter", "Jon Jones");
+await page.focus("#ia");
+await page.keyboard.press("Tab");
+await page.waitForTimeout(250);
 ok("unknown fighter is declined, not guessed",
    (await page.$eval("#warn", (e) => e.textContent)).includes("NOT IN THE INDEX"));
+await page.fill("#ib", "Jon Jone");
+ok("an announced unknown stays explained while the other corner changes",
+   (await page.$eval("#warn", (e) => e.textContent)).includes("ZZZ NOT A FIGHTER"));
 
 // The index is keyed by UFCStats' exact spelling. Exact-match lookup meant
 // "jon jones" was refused as NOT IN THE INDEX while the autocomplete right
@@ -362,6 +416,68 @@ ok("stray and repeated whitespace resolves too",
 await rows("jon jones", "JON JONES");
 ok("case difference is still the same fighter, not a matchup",
    await page.$eval("#go", (e) => e.disabled));
+
+await rows("Jun Yong Park", "Dong Hyun Kim");
+ok("inserted spaces resolve to the indexed fighter",
+   (await page.$eval("#pna", (e) => e.textContent)) === "JUNYONG PARK");
+await rows("JunYongPark", "Dong Hyun Kim");
+ok("missing spaces resolve to the indexed fighter",
+   (await page.$eval("#pna", (e) => e.textContent)) === "JUNYONG PARK");
+await rows("Sean OMalley", "Merab Dvalishvili");
+ok("punctuation-free names resolve",
+   (await page.$eval("#pna", (e) => e.textContent)) === "SEAN O'MALLEY");
+await rows("Sean O’Malley", "Merab Dvalishvili");
+ok("curly punctuation resolves",
+   (await page.$eval("#pna", (e) => e.textContent)) === "SEAN O'MALLEY");
+await rows("Georges St Pierre", "Islam Makhachev");
+ok("hyphen variants resolve",
+   (await page.$eval("#pna", (e) => e.textContent)) === "GEORGES ST-PIERRE");
+await rows("Jan Błachowicz", "Lukasz Brzeski");
+ok("non-decomposing letters resolve",
+   (await page.$eval("#pna", (e) => e.textContent)) === "JAN BLACHOWICZ");
+await rows("Korean Zombie", "Max Holloway");
+ok("reviewed nicknames resolve to a canonical fighter",
+   (await page.$eval("#pna", (e) => e.textContent)) === "CHAN SUNG JUNG");
+await rows("Korean Zombie", "Chan Sung Jung");
+ok("an alias and its canonical name are the same fighter, not a matchup",
+   await page.$eval("#go", (e) => e.disabled));
+
+await rows("constructor", "Jon Jones");
+await page.focus("#ia");
+await page.keyboard.press("Tab");
+await page.waitForTimeout(250);
+ok("object prototype names are rejected safely",
+   await page.$eval("#go", (e) => e.disabled) &&
+   (await page.$eval("#warn", (e) => e.textContent)).includes("NOT IN THE INDEX"));
+
+await page.fill("#ia", "");
+await page.fill("#ib", "Jon Jones");
+await page.fill("#ia", "Islam Makachev");
+await page.waitForTimeout(150);
+const fuzzy = await page.evaluate(() => ({
+  first: document.querySelector("#aca > div")?.dataset.n || "",
+  reason: document.querySelector("#aca > div small")?.textContent || "",
+  disabled: document.getElementById("go").disabled,
+}));
+ok("a close typo is suggested, never silently accepted",
+   fuzzy.first === "Islam Makhachev" && fuzzy.reason.includes("CLOSE MATCH") && fuzzy.disabled,
+   JSON.stringify(fuzzy));
+await page.keyboard.press("Enter");
+await page.waitForTimeout(200);
+ok("explicitly choosing the close match enables the matchup",
+   (await page.$eval("#pna", (e) => e.textContent)) === "ISLAM MAKHACHEV" &&
+   !(await page.$eval("#go", (e) => e.disabled)));
+
+await page.fill("#ia", "Korean Zombi");
+await page.waitForTimeout(150);
+const fuzzyAlias = await page.evaluate(() => ({
+  first: document.querySelector("#aca > div")?.dataset.n || "",
+  reason: document.querySelector("#aca > div small")?.textContent || "",
+  disabled: document.getElementById("go").disabled,
+}));
+ok("a nickname typo is labeled close and remains suggestion-only",
+   fuzzyAlias.first === "Chan Sung Jung" && fuzzyAlias.reason.includes("CLOSE TO") &&
+   fuzzyAlias.disabled, JSON.stringify(fuzzyAlias));
 
 /* ---------- 4. reduced motion on a phone ---------- */
 console.log("\nReduced motion @ 390px");
@@ -397,6 +513,7 @@ const src = readFileSync(built, "utf8");
 // project must never make and must not trip their own rule.
 const shown = src
   .replace(/<script id="fjdata"[\s\S]*?<\/script>/i, " ")
+  .replace(/<script id="fjalias"[\s\S]*?<\/script>/i, " ")
   .replace(/\/\*[\s\S]*?\*\//g, " ")
   .replace(/^\s*\/\/.*$/gm, " ");
 
@@ -413,7 +530,8 @@ ok("a locator ships on the artifact", /const HOME=['"][^'"]+['"]/.test(src));
 // NUMBERS THE UI IS ALLOWED TO PRINT". A figure on screen that the pipeline no
 // longer produces is exactly the failure this project exists not to have, and
 // it is invisible to every other assertion here.
-const PUBLISHED = ["61.2%", "76.8%", "15.6%", "67.2%", "52.0%", "0.230", "3,404", "6,457"];
+const PUBLISHED = ["61.2%", "76.8%", "15.6%", "67.2%", "59.6%", "52.0%", "40.4%",
+                   "0.230", "3,404", "6,457"];
 const missingClaims = PUBLISHED.filter((n) => !shown.includes(n));
 ok("every published figure is still on screen", missingClaims.length === 0, missingClaims.join(", "));
 // Retired figures. Each was wrong, and each shipped on three surfaces at once.
@@ -453,8 +571,8 @@ if (!existsSync(metricsFile)) {
   const hdr = txt.match(/accuracy ([\d.]+)%\s+Brier ([\d.]+)\s+ECE ([\d.]+) pts\s+worst band ([\d.]+) pts\s+N (\d+)/);
   const MET = await page.evaluate(() => MET);
   const expected = !thr || !hdr ? null : {
-    REFUSE: Math.round(+thr[1]), REFUSE_ACC: (+thr[2] * 100).toFixed(1),
-    CALL: Math.round(+thr[3]), CALL_ACC: (+thr[4] * 100).toFixed(1),
+    REFUSE: (+thr[1]).toFixed(1), REFUSE_ACC: (+thr[2] * 100).toFixed(1),
+    CALL: (+thr[3]).toFixed(1), CALL_ACC: (+thr[4] * 100).toFixed(1),
     FORCED: hdr[1], BRIER: hdr[2], ECE: hdr[3], WORST: hdr[4],
     N: (+hdr[5]).toLocaleString("en-US"),
   };
@@ -475,7 +593,7 @@ console.log("\nEvent mode");
 await page.click("#event");
 ok("EVENT opens the panel", await page.$eval("#evpanel", (e) => e.classList.contains("on")));
 await page.fill("#ename", "TEST CARD");
-await page.fill("#ecard", "Jon Jones vs Stipe Miocic\nAlex Pereira vs Israel Adesanya\nNot A Person vs Jon Jones");
+await page.fill("#ecard", "Jon Jones vs Stipe Miocic\nAlex Pereira vs Israel Adesanya\nKorean Zombie vs Max Holloway\nconstructor vs Jon Jones");
 await page.click("#erun");
 await page.waitForTimeout(1500);
 const ev = await page.evaluate(() => ({
@@ -483,14 +601,26 @@ const ev = await page.evaluate(() => ({
   warned: document.getElementById("ewarn").classList.contains("on"),
   rcpt: JSON.parse(receipt()),
 }));
-ok("both real bouts ran, the unknown fighter was declined", ev.rows === 2 && ev.warned, `rows=${ev.rows}`);
+ok("canonical and alias bouts ran; the prototype name was declined",
+   ev.rows === 3 && ev.warned, `rows=${ev.rows}`);
 ok("every bout is drawn", ev.drawn === ev.rows);
-ok("the receipt is committable and ungraded", ev.rcpt.bouts.length === 2
+ok("the receipt is committable and ungraded", ev.rcpt.bouts.length === 3
   && ev.rcpt.bouts.every((b) => b.winner === null) && !!ev.rcpt.stamped);
 ok("the receipt records refusals explicitly",
   ev.rcpt.bouts.every((b) => typeof b.refused === "boolean"));
 ok("the scorecard renders at the bout count",
-  await page.evaluate(() => { const c = drawEvent(); return c.width === 2160 && c.height > 1000; }));
+   await page.evaluate(() => { const c = drawEvent(); return c.width === 2160 && c.height > 1000; }));
+await page.fill("#ecard", "constructor vs toString");
+await page.click("#erun");
+await page.waitForTimeout(200);
+const emptyEvent = await page.evaluate(() => ({
+  rows: EV.rows.length,
+  shown: document.getElementById("eout").classList.contains("on"),
+  actions: document.getElementById("eacts").classList.contains("on"),
+}));
+ok("an all-invalid event clears the previous card instead of retaining stale data",
+   emptyEvent.rows === 0 && !emptyEvent.shown && !emptyEvent.actions,
+   JSON.stringify(emptyEvent));
 await page.click("#eclose");
 ok("Escape/Close dismisses it", !(await page.$eval("#evpanel", (e) => e.classList.contains("on"))));
 
