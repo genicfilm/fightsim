@@ -1,5 +1,5 @@
-// Bundles fightsim/index.html + data.json + aliases.json + fonts into one
-// self-contained FightSim.html that opens by double-clicking — no server, no
+// Bundles receipts/index.html + data.json + aliases.json + fonts into one
+// self-contained MMAReceipts.html that opens by double-clicking — no server, no
 // localhost, no WSL port forwarding. Fonts are inlined too, because Chrome
 // blocks @font-face over file:// even when the .ttf sits right next to the page.
 import { readFileSync, writeFileSync, statSync } from "node:fs";
@@ -8,8 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dir = path.join(root, "fightsim");
-const out = path.join(dir, "FightSim.html");
+const dir = path.join(root, "receipts");
+const out = path.join(dir, "MMAReceipts.html");
 
 let html = readFileSync(path.join(dir, "index.html"), "utf8");
 const data = readFileSync(path.join(dir, "data.json"), "utf8");
@@ -88,8 +88,8 @@ if (!html.includes('id="fjdata"') || !html.includes('id="fjalias"')) {
 
 writeFileSync(out, html);
 const kb = (statSync(out).size / 1024).toFixed(0);
-console.log(`FightSim.html  ${kb} KB  ->  ${out}`);
-console.log(`Windows: C:\\Users\\ryank\\Documents\\UFC REF\\fightsim\\FightSim.html`);
+console.log(`MMAReceipts.html  ${kb} KB  ->  ${out}`);
+console.log(`Windows: C:\\Users\\ryank\\Documents\\UFC REF\\receipts\\MMAReceipts.html`);
 
 // 3. cache-bust the hosted copy.
 //    GitHub Pages serves `cache-control: max-age=600`, and a 2.8 MB HTML file
@@ -97,14 +97,14 @@ console.log(`Windows: C:\\Users\\ryank\\Documents\\UFC REF\\fightsim\\FightSim.h
 //    shipped change looked identical on the live URL for that reason alone.
 //    The landing page is 1.6 KB and revalidates for free, so it carries a
 //    content hash and the app's URL changes whenever the app does. Anyone
-//    deep-linking straight to FightSim.html still has to hard-refresh — which
+//    deep-linking straight to MMAReceipts.html still has to hard-refresh — which
 //    is why the card prints the short URL, not that one.
 const stamp = createHash("sha256").update(html).digest("hex").slice(0, 10);
 const landing = path.join(root, "index.html");
 const before = readFileSync(landing, "utf8");
 const after = before
-  .replace(/url=fightsim\/FightSim\.html(?:\?v=[a-f0-9]+)?/, `url=fightsim/FightSim.html?v=${stamp}`)
-  .replace(/href="fightsim\/FightSim\.html(?:\?v=[a-f0-9]+)?"/, `href="fightsim/FightSim.html?v=${stamp}"`);
+  .replace(/url=receipts\/MMAReceipts\.html(?:\?v=[a-f0-9]+)?/, `url=receipts/MMAReceipts.html?v=${stamp}`)
+  .replace(/href="receipts\/MMAReceipts\.html(?:\?v=[a-f0-9]+)?"/, `href="receipts/MMAReceipts.html?v=${stamp}"`);
 if (after !== before) {
   writeFileSync(landing, after);
   console.log(`index.html    cache stamp -> ?v=${stamp}`);

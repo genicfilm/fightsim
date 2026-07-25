@@ -1,6 +1,6 @@
-// FIGHT SIM regression suite. Drives the BUILT file over file:// with Playwright.
+// MMA RECEIPTS regression suite. Drives the BUILT file over file:// with Playwright.
 //
-//   npm run build:fightsim && npm test
+//   npm run build:receipts && npm test
 //
 // Exits non-zero on the first failed assertion, so it is safe to gate a change
 // on. There is no http server anywhere in here on purpose: under WSL2 Windows
@@ -12,9 +12,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const built = path.join(root, "fightsim", "FightSim.html");
+const built = path.join(root, "receipts", "MMAReceipts.html");
 if (!existsSync(built)) {
-  console.error("FightSim.html not found — run `npm run build:fightsim` first.");
+  console.error("MMAReceipts.html not found — run `npm run build:receipts` first.");
   process.exit(1);
 }
 const FILE = pathToFileURL(built).href;
@@ -171,7 +171,7 @@ ok("attribution lists terms and prints Σ", inv.attrRows > 0 && /Σ INCL\. INTER
 const pk = await page.evaluate(() => ({
   on: document.getElementById("pickres").classList.contains("on"),
   txt: document.getElementById("pickres").textContent,
-  tally: JSON.parse(localStorage.getItem("fightsim.reads") || "{}"),
+  tally: JSON.parse(localStorage.getItem("mmareceipts.reads") || "{}"),
   hung: LAST.hung,
 }));
 ok("the read is answered as agreement, never as accuracy",
@@ -558,6 +558,25 @@ ok("the disclaimer is present and un-deletable",
 ok("the data source and the non-affiliation are stated in the product",
   /ufcstats/i.test(shown) && /not affiliated/i.test(shown), "attribution missing from the built file");
 ok("a locator ships on the artifact", /const HOME=['"][^'"]+['"]/.test(src));
+// The wordmark is set in the markup three times and drawn onto two canvases.
+// Both previous renames left stragglers; this is why the canvases read BRAND
+// and why every .wm on screen has to equal it.
+const brand = await page.evaluate(() => ({
+  BRAND: typeof BRAND === "string" ? BRAND : null,
+  wms: [...document.querySelectorAll(".wm")].map((e) => e.textContent.trim()),
+  title: document.title,
+  home: HOME,
+}));
+ok("every wordmark on screen is the one brand string",
+   brand.BRAND === "MMA RECEIPTS" && brand.wms.length >= 3 &&
+   brand.wms.every((w) => w === brand.BRAND),
+   `${brand.BRAND} vs ${JSON.stringify(brand.wms)}`);
+ok("the title and the published locator carry the brand too",
+   brand.title.startsWith("MMA RECEIPTS") && brand.home === "genicfilm.github.io/mma-receipts",
+   `${brand.title} · ${brand.home}`);
+ok("no retired product name survives anywhere the reader can see",
+   !/FIGHT SIM|FightSim\.html|FIGHT JURY|VARIANCE/.test(shown),
+   (shown.match(/FIGHT SIM|FightSim\.html|FIGHT JURY|VARIANCE/) || [])[0]);
 // Every metric the UI prints, against the block build-data.py labels "THE
 // NUMBERS THE UI IS ALLOWED TO PRINT". A figure on screen that the pipeline no
 // longer produces is exactly the failure this project exists not to have, and

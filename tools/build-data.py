@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild fightsim/data.json from public UFC data.
+"""Rebuild receipts/data.json from public UFC data.
 
     python3 -m venv .venv && ./.venv/bin/pip install pandas numpy scikit-learn pyarrow
     ./.venv/bin/python tools/build-data.py
@@ -23,7 +23,7 @@ from sklearn.pipeline import make_pipeline
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, ".cache-ufc")
-OUT = os.path.join(ROOT, "fightsim", "data.json")
+OUT = os.path.join(ROOT, "receipts", "data.json")
 BASE = "https://raw.githubusercontent.com/Greco1899/scrape_ufc_stats/main/"
 FILES = ["ufc_fight_results", "ufc_fight_stats", "ufc_fighter_tott", "ufc_event_details"]
 
@@ -374,7 +374,7 @@ def main():
              'scale': [round(float(x), 6) for x in sc.scale_],
              'impute': [round(float(x), 6) for x in imp.statistics_]}
     # Fail rather than create. This used to be makedirs(exist_ok=True), which
-    # after the FIGHT JURY -> FIGHT SIM rename meant a stale OUT path silently
+    # after the FIGHT JURY -> MMA RECEIPTS rename meant a stale OUT path silently
     # produced a phantom folder, wrote a perfectly good data.json into it, and
     # printed success while the app kept serving the old file.
     outdir = os.path.dirname(OUT)
@@ -386,7 +386,7 @@ def main():
     print(f"\n  wrote {OUT}")
     print(f"  {len(fighters)} fighters · {sum(len(v['v']) for v in fighters.values())} versions"
           f" · {len(holdout['fights'])} held-out bouts · {os.path.getsize(OUT)/1024/1024:.2f} MB")
-    print("  now run: npm run build:fightsim")
+    print("  now run: npm run build:receipts")
 
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
-# FIGHT SIM
+# MMA RECEIPTS
 
 **See what the record separates — and what it does not.**
 
-FIGHT SIM is a line-blind pre-fight evidence check for UFC fans. Two fighters go
+MMA RECEIPTS is a line-blind pre-fight evidence check for UFC fans. Two fighters go
 in; the model runs the matchup 1,000 times and reports the distribution,
 including every run that lands on the other side. When the historical record
 does not separate the matchup, it says **NO EDGE**.
@@ -11,33 +11,36 @@ The durable product direction is in
 [`PRODUCT-BRIEF.md`](PRODUCT-BRIEF.md). This file documents the implementation,
 measured record, and runtime constraints.
 
-*Previously FIGHT JURY, then VARIANCE. The courtroom framing went because it
-described the wrong machine — these are Monte Carlo rollouts over a calibrated
-posterior, not a deliberation. VARIANCE went because it described the right
-machine in a word no fight fan parses on sight. The internal vocabulary was
-already "the sim" — the button says `RUN THE SIM` — so the name is now the word
-the product was using anyway.*
+*Previously THE OFFICIATING FILE, FIGHT JURY, VARIANCE, then FIGHT SIM. The
+courtroom framing went because it described the wrong machine — these are Monte
+Carlo rollouts over a calibrated posterior, not a deliberation. VARIANCE went
+because it described the right machine in a word no fight fan parses on sight.
+FIGHT SIM went because it named the engine, and the engine is not the point: the
+sim is one voice, and what the project actually produces is a **receipt** — a
+reading committed in public before a card, and graded against what happened
+after it. The button still says `RUN THE SIM`, because that is still what it
+does. Renamed 2026-07-25; the model, the numbers and the holdout are unchanged.*
 
 ## Run it
 
-**Double-click `FightSim.html`.** That is it. No server, no terminal, no
+**Double-click `MMAReceipts.html`.** That is it. No server, no terminal, no
 localhost. Everything — model, 2,290 fighters, reviewed aliases, and all four
 fonts — is inlined into that one file, so it runs straight off disk.
 
 ```
-C:\Users\ryank\Documents\UFC REF\fightsim\FightSim.html
+C:\Users\ryank\Documents\UFC REF\mma-receipts\MMAReceipts.html
 ```
 
 Rebuild it after any change to `index.html`, `data.json`, `aliases.json`, or the
 fonts:
 
 ```bash
-npm run build:fightsim
+npm run build:receipts
 ```
 
 `index.html` is the editable source and references sibling `data.json` and
 `aliases.json` files. The development and test contract is still the built
-`FightSim.html` over `file://`: rebuild it and open that file. Do not introduce
+`MMAReceipts.html` over `file://`: rebuild it and open that file. Do not introduce
 a development server.
 
 No backend, no API, no database, no per-query cost. It can be hosted free
@@ -45,7 +48,7 @@ anywhere, or emailed to someone as a single attachment.
 
 ## What it actually is
 
-- `FightSim.html` — the built single file. **This is the one you open.**
+- `MMAReceipts.html` — the built single file. **This is the one you open.**
 - `index.html` — editable source. Search, tale of the tape, the sim, the short
   Matchup Read, calibration and fighter history, attribution, and the tail.
 - `data.json` — 2,290 fighter career states, the model (coefficients, means,
@@ -55,8 +58,8 @@ anywhere, or emailed to someone as a single attachment.
 - `aliases.json` — reviewed search aliases keyed by canonical fighter name. UI
   metadata only; it does not change `data.json` or the model.
 - `fonts/` — Anton + Barlow Condensed.
-- `../tools/build-fightsim.mjs` — validates aliases and bundles the source,
-  data, aliases, and fonts into `FightSim.html`.
+- `../tools/build-receipts.mjs` — validates aliases and bundles the source,
+  data, aliases, and fonts into `MMAReceipts.html`.
 
 The model is **logistic regression**, deliberately. A gradient-boosted ensemble
 scored the same on held-out data (61.5% vs 61.2%), and the linear model ports to
@@ -109,7 +112,7 @@ evidence base.
 
 Ceiling check: adding Elo, gradient boosting, recency weighting, durability and
 form all landed within half a point of each other. The signal in public fight
-statistics runs out around 62% in these experiments. FIGHT SIM does not score
+statistics runs out around 62% in these experiments. MMA RECEIPTS does not score
 injuries, camps, weight cuts, betting lines, or social chatter; the result says
 so rather than implying that information is present.
 
@@ -189,7 +192,7 @@ is keyed by the exact canonical name in `data.json`, for example:
 ```
 
 Aliases are reviewed UI metadata, not generated fight data. Do not add them to
-`data.json`. At build time, `tools/build-fightsim.mjs`:
+`data.json`. At build time, `tools/build-receipts.mjs`:
 
 1. parses `data.json` and `aliases.json`;
 2. verifies every canonical target exists;
@@ -575,17 +578,17 @@ mirror — 8,784 fights and 41,340 round-level rows, current through 18 July 202
 UFCStats itself is behind a bot challenge; the mirror is the practical source.
 
 The rebuild pipeline is `tools/build-data.py`. It needs Python with pandas,
-numpy, scikit-learn and pyarrow, and it writes `fightsim/data.json` in place:
+numpy, scikit-learn and pyarrow, and it writes `receipts/data.json` in place:
 
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install pandas numpy scikit-learn pyarrow
 ./.venv/bin/python tools/build-data.py
-npm run build:fightsim      # validates aliases, then inlines data + aliases
+npm run build:receipts      # validates aliases, then inlines data + aliases
 ```
 
 `build-data.py` does not create or modify `aliases.json`. Search aliases remain
-a separate reviewed source and are validated only when `build:fightsim` runs.
+a separate reviewed source and are validated only when `build:receipts` runs.
 
-It refuses to run if `fightsim/` is missing rather than creating the folder —
+It refuses to run if `receipts/` is missing rather than creating the folder —
 after the rename it was still pointed at `fightjury/`, so it happily wrote a
 correct file into a directory nobody reads and reported success.

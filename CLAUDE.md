@@ -5,19 +5,19 @@ test commands, the boundary between UI and model, the DOM contract, the
 invariants the suite enforces, the numbers the UI is allowed to print, and the
 palette rationale.
 
-Deep documentation of the model itself is in **[fightsim/README.md](fightsim/README.md)**.
+Deep documentation of the model itself is in **[receipts/README.md](receipts/README.md)**.
 
 Quick reference:
 
 ```bash
 python3 tools/build-data.py  # regenerates data.json + tools/metrics.txt (needs pandas/sklearn)
-npm run build:fightsim   # fightsim/index.html + data.json + fonts -> FightSim.html
+npm run build:receipts   # receipts/index.html + data.json + fonts -> MMAReceipts.html
 npm test                 # 83 assertions over file:// — must be green before you ship
 npm run shots            # 10 screens vs tools/baseline/ — catches what npm test cannot
 node tools/ledger.mjs    # grade ledger/*.json -> ledger/README.md
 ```
 
-Edit `fightsim/index.html`, never `fightsim/FightSim.html` (generated).
+Edit `receipts/index.html`, never `receipts/MMAReceipts.html` (generated).
 
 **Run both suites from WSL bash, never from Windows.** `tools/chromium-path.mjs`
 falls back to system Chrome/Edge there, which rasterises through DirectWrite

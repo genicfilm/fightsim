@@ -1,12 +1,12 @@
-# FIGHT SIM Product Brief
+# MMA RECEIPTS Product Brief
 
 **Status:** Product direction  
 **Research date:** 2026-07-25  
-**Scope:** The static, offline FIGHT SIM artifact
+**Scope:** The static, offline MMA RECEIPTS artifact
 
 ## Product thesis
 
-FIGHT SIM should become the fastest credible pre-fight read for UFC fans, not a
+MMA RECEIPTS should become the fastest credible pre-fight read for UFC fans, not a
 generic pick service.
 
 It compares two fighters using only information available before their bouts,
@@ -64,7 +64,7 @@ an adjacent audience, not a measured market size for an MMA analytics tool.
 
 The commercial pages above are useful evidence of product positioning and
 feature patterns only. Their performance claims are self-published and were not
-independently verified for this brief. FIGHT SIM should not repeat, compare
+independently verified for this brief. MMA RECEIPTS should not repeat, compare
 against, or imply conclusions about any competitor's accuracy.
 
 Across the sampled products, common patterns include:
@@ -78,7 +78,7 @@ Across the sampled products, common patterns include:
 - profiles, streaks, groups, and leaderboards as retention;
 - broad “AI,” confidence, and betting-edge language.
 
-FIGHT SIM should not compete by adding more of the last pattern. Its defensible
+MMA RECEIPTS should not compete by adding more of the last pattern. Its defensible
 position is a precise, independent evidence check with a first-class no-edge
 state.
 
@@ -94,7 +94,7 @@ state.
 
 ### Supporting explanation
 
-> Choose two UFC fighters. FIGHT SIM compares their pre-fight careers, runs
+> Choose two UFC fighters. MMA RECEIPTS compares their pre-fight careers, runs
 > 1,000 line-blind rollouts, and shows whether the historical data produces a
 > meaningful lean or no edge.
 
@@ -265,7 +265,7 @@ item.
 
 ## Why live sentiment is later and separate
 
-Adding X, Reddit, media, forums, and video analysis would change FIGHT SIM from a
+Adding X, Reddit, media, forums, and video analysis would change MMA RECEIPTS from a
 static artifact into a hosted data operation with recurring cost, platform
 agreements, deletion handling, source monitoring, storage, and moderation.
 
@@ -325,7 +325,7 @@ It is not maximum time on page, maximum confidence, or fewer refusals.
 After using the product, can a fan correctly explain:
 
 - which side the distribution leaned toward;
-- whether FIGHT SIM called or declined the matchup;
+- whether MMA RECEIPTS called or declined the matchup;
 - why a confidence-band history is shown;
 - which factors drove the result;
 - what the model does not know;

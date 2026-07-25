@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FIGHT SIM — a line-blind UFC matchup read</title>
+<title>MMA RECEIPTS — a line-blind UFC matchup read</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0c'/><path fill='none' stroke='%23f2f2f0' stroke-width='7' d='M31 6H69L94 31V69L69 94H31L6 69V31Z'/><path fill='%23f2f2f0' d='M36 24H49V70H41V56L30 49V40Z'/><rect x='49' y='18' width='2.5' height='64' fill='%23f2f2f0'/><rect x='56' y='34' width='14' height='5' fill='%23f2f2f0'/><rect x='56' y='47' width='22' height='5' fill='%23f2f2f0'/><rect x='56' y='60' width='11' height='5' fill='%23f2f2f0'/></svg>">
 <style>
 @font-face{font-family:Anton;src:url(fonts/Anton-Regular.ttf) format('truetype');font-display:swap}
@@ -963,7 +963,7 @@ input::placeholder{color:#3a3a44}
 <!-- METHOD — shown once, then remembered -->
 <div class="intro on" id="intro">
   <div class="ibox">
-    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
+    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">MMA RECEIPTS</span></div>
     <p class="ilead">A transparent matchup read that shows where the record separates — and where it does not.</p>
     <div class="ipts">
       <div class="ipt k1"><b>COMPARE</b><span>Striking, grappling, damage, form, rating and physicals
@@ -972,7 +972,7 @@ input::placeholder{color:#3a3a44}
       <div class="ipt k2"><b>RUN<br>1,000</b><span>The matchup runs through <i>1,000 declared feature
         perturbations</i>. The result is the whole split — including every run that lands on the other
         side — not manufactured certainty.</span></div>
-      <div class="ipt k3"><b>REFUSE<br>40.4%</b><span>When confidence stays below 58%, FIGHT SIM prints
+      <div class="ipt k3"><b>REFUSE<br>40.4%</b><span>When confidence stays below 58%, MMA RECEIPTS prints
         <i>NO EDGE</i>. Those held-out fights realised <i>52.0%</i>; above the threshold, the
         higher-probability side realised <i>67.2%</i>.</span></div>
     </div>
@@ -988,7 +988,7 @@ input::placeholder{color:#3a3a44}
      disturb the main page's layout: every existing screen diffs at 0.000%. -->
 <div class="intro" id="evpanel">
   <div class="ibox ebox">
-    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span><span class="etag">EVENT</span><button class="method eclose" id="eclose">CLOSE</button></div>
+    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">MMA RECEIPTS</span><span class="etag">EVENT</span><button class="method eclose" id="eclose">CLOSE</button></div>
     <p class="ilead">One card. Every fight. The ones it will not call, marked as refused.</p>
     <div class="efield">
       <label for="ename">EVENT</label>
@@ -1015,7 +1015,7 @@ input::placeholder{color:#3a3a44}
 <div class="wrap">
 
   <header>
-    <div class="mark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
+    <div class="mark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">MMA RECEIPTS</span></div>
     <div class="tag">A line-blind read of any UFC matchup</div>
     <div class="spacer"></div>
     <button class="method" id="event">EVENT</button>
@@ -1032,7 +1032,7 @@ input::placeholder{color:#3a3a44}
         <button class="cardlink" id="eventhero">READ THE WHOLE CARD →</button>
       </div>
       <h1>SEE WHAT THE RECORD SEPARATES.<br><span>AND WHAT IT DOESN'T.</span></h1>
-      <p class="dek">Choose two fighters. FIGHT SIM compares their career records across 1,000
+      <p class="dek">Choose two fighters. MMA RECEIPTS compares their career records across 1,000
         line-blind rollouts, then shows meaningful separation or no edge.</p>
       <!-- The differentiator, on the cold page. Populated from MET so the only
            place these figures exist is the block tools/build-data.py prints. -->
@@ -1189,7 +1189,7 @@ input::placeholder{color:#3a3a44}
         </div>
       </section>
       <div class="foot">
-        <div>FIGHT SIM · L2 LOGISTIC · LINE-BLIND · NOT A PREDICTION. A DISTRIBUTION.<br>
+        <div>MMA RECEIPTS · L2 LOGISTIC · LINE-BLIND · NOT A PREDICTION. A DISTRIBUTION.<br>
           Data derived from UFCStats.com via the Greco1899/scrape_ufc_stats mirror.
           Not affiliated with, endorsed by, or sponsored by the UFC, Zuffa LLC or TKO Group.</div>
         <div id="saved"></div>
@@ -1242,7 +1242,7 @@ if(inline){ boot(JSON.parse(inline.textContent),aliasInline?JSON.parse(aliasInli
 else Promise.all([fetch('data.json').then(r=>r.json()),fetch('aliases.json').then(r=>r.json())])
   .then(([d,a])=>boot(d,a))
   .catch(()=>{ $('warn').textContent='Could not load data.json / aliases.json — this is index.html, the editable source, '+
-    'and the browser blocks its fetch over file://. Open FightSim.html instead; the model, fighters and '+
+    'and the browser blocks its fetch over file://. Open MMAReceipts.html instead; the model, fighters and '+
     'reviewed aliases are inlined into that offline file.'; });
 
 /* ---------- model ---------- */
@@ -1285,7 +1285,13 @@ function weightPrior(a,b){
 }
 // The one place the destination is written. Every surface reads it from here
 // so a share can never circulate without a way back to the tool.
-const HOME='genicfilm.github.io/fightsim';
+const HOME='genicfilm.github.io/mma-receipts';
+/* The wordmark, once. It is set in three places in the markup and drawn onto
+   two different canvases; the canvases read it from here so a rename cannot
+   leave the share card wearing the old name — which is exactly how the previous
+   two renames left stragglers. The suite asserts every `.wm` on screen matches
+   this string, so the markup cannot drift from it either. */
+const BRAND='MMA RECEIPTS';
 const sigmoid=z=>1/(1+Math.exp(-z));
 // One standardized term per feature. Everything downstream — the pipeline
 // readout and the attribution panel — reads these same numbers, so what the
@@ -1730,7 +1736,7 @@ document.querySelectorAll('.hint span').forEach(s=>s.onclick=()=>{
    right or wrong, because nobody knows the result yet and the model is a
    baseline, not an answer key. */
 let PICK=null, PICKKEY='', RUNPICK=null;
-const PKEY='fightsim.reads';
+const PKEY='mmareceipts.reads';
 function syncPick(a,b){
   const on=!!(a&&b&&a!==b);
   const key=on?`${a}|${b}`:'';
@@ -2626,10 +2632,10 @@ function drawCard(){
     drawGlyph(M,y-g*0.84,g);
     const tx=M+g+px*0.40;
     x.font=`${px}px Anton`;
-    const w=x.measureText('FIGHT SIM').width;
+    const w=x.measureText(BRAND).width;
     x.save();
     x.translate(tx,y); x.transform(1,0,SHEAR,1,0,0);
-    x.fillStyle=INK; x.fillText('FIGHT SIM',0,0);
+    x.fillStyle=INK; x.fillText(BRAND,0,0);
     x.restore();
     if(tag){ x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText(tag,tx+w+22,y-1); }
   };
@@ -2790,7 +2796,7 @@ function drawCard(){
 }
 function cardName(ext){
   const k=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  return `fightsim-${k(LAST.A)}-vs-${k(LAST.B)}.${ext}`;
+  return `mma-receipts-${k(LAST.A)}-vs-${k(LAST.B)}.${ext}`;
 }
 // JPEG for the download: grain is incompressible, so PNG lands at ~9 MB while
 // JPEG holds the same card under 1 MB — and every platform re-encodes anyway.
@@ -3005,9 +3011,9 @@ function drawEvent(){
   const mark=(px,y,tag)=>{
     const g=px*1.32; glyph(M,y-g*0.84,g);
     const tx=M+g+px*0.40; x.font=`${px}px Anton`;
-    const w=x.measureText('FIGHT SIM').width;
+    const w=x.measureText(BRAND).width;
     x.save(); x.translate(tx,y); x.transform(1,0,SHEAR,1,0,0);
-    x.fillStyle=INK; x.fillText('FIGHT SIM',0,0); x.restore();
+    x.fillStyle=INK; x.fillText(BRAND,0,0); x.restore();
     if(tag){ x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText(tag,tx+w+22,y-1); }
   };
 
@@ -3157,7 +3163,7 @@ $('esave').onclick=async()=>{
   await document.fonts.ready;
   drawEvent().toBlob(bl=>{
     const u=URL.createObjectURL(bl), a=document.createElement('a');
-    a.href=u; a.download=`fightsim-${EV.graded?'graded-':''}${EV.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')
+    a.href=u; a.download=`mma-receipts-${EV.graded?'graded-':''}${EV.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')
       .replace(/^-|-$/g,'')||'card'}.jpg`;
     a.click(); URL.revokeObjectURL(u);
     $('esaved').textContent=`SAVED · ${(bl.size/1024|0)} KB`;
@@ -3176,7 +3182,7 @@ $('ejson').onclick=async()=>{
 // Versioned. The unversioned key meant the method screen was shown once per
 // browser, ever — so rewriting it changed nothing for anyone who had already
 // opened the file. Bump the suffix whenever this screen's claims change.
-const MKEY='fightsim.method.v3';
+const MKEY='mmareceipts.method.v1';
 const seen=()=>{ try{ return localStorage.getItem(MKEY)==='1'; }catch(e){ return false; } };
 if(seen()) $('intro').classList.remove('on');
 $('ienter').onclick=()=>{

@@ -1,11 +1,11 @@
 {
-  "name": "fightsim",
+  "name": "mma-receipts",
   "version": "0.2.0",
   "private": true,
-  "description": "FIGHT SIM \u2014 1,000 Monte Carlo rollouts per UFC matchup, from public fight data.",
+  "description": "MMA RECEIPTS \u2014 1,000 Monte Carlo rollouts per UFC matchup, from public fight data.",
   "type": "module",
   "scripts": {
-    "build:fightsim": "node tools/build-fightsim.mjs",
+    "build:receipts": "node tools/build-receipts.mjs",
     "test": "node tools/test.mjs",
     "shots": "node tools/shots.mjs",
     "shots:update": "node tools/shots.mjs --update",

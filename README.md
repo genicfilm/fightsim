@@ -1,8 +1,8 @@
-# FIGHT SIM
+# MMA RECEIPTS
 
 **See what the record separates — and what it does not.**
 
-FIGHT SIM is a line-blind pre-fight evidence check for UFC fans. Choose two
+MMA RECEIPTS is a line-blind pre-fight evidence check for UFC fans. Choose two
 fighters; it compares their career states, runs the matchup 1,000 times, and
 reports the distribution — including every run that lands on the other side.
 
@@ -11,26 +11,27 @@ below 0.55 realised *exactly* 50.0% — no measurable separation, stated plainly
 The 59.6% it retains realised 67.2%. The refusal, its measured record, and the
 pre-card event receipt are the product.
 
-**Open `fightsim/FightSim.html` by double-clicking it.** No server, no
+**Open `receipts/MMAReceipts.html` by double-clicking it.** No server, no
 terminal. Everything is inlined into that one file.
 
-Full documentation: **[`fightsim/README.md`](fightsim/README.md)** — the model,
+Full documentation: **[`receipts/README.md`](receipts/README.md)** — the model,
 its measured limits, smart search, the short Matchup Read, the sim, attribution,
 the cross-division prior, career versions, the palette, and the share card.
 Product direction and future boundaries live in
-**[`fightsim/PRODUCT-BRIEF.md`](fightsim/PRODUCT-BRIEF.md)**.
+**[`receipts/PRODUCT-BRIEF.md`](receipts/PRODUCT-BRIEF.md)**.
 
-*Previously FIGHT JURY, then VARIANCE; both retired 2026-07-24. The jury
-metaphor described the wrong machine — this is a simulation, not a
-deliberation. VARIANCE described the right machine, but "variance" is a
-statistics term, and the audience is fight fans. The product already called it
-the sim; the name does now too.*
+*Previously THE OFFICIATING FILE, FIGHT JURY, VARIANCE, then FIGHT SIM. The jury
+metaphor described the wrong machine; "variance" is a statistics word and the
+audience is fight fans; FIGHT SIM named the engine rather than the product. A
+receipt is the thing this actually makes — a reading committed in public before
+a card and graded after it — so the name is the artifact now, not the machinery
+that produces it. Renamed 2026-07-25; nothing about the model changed.*
 
 ## Layout
 
 ```
-fightsim/
-  FightSim.html    the built single file — this is the one you open
+receipts/
+  MMAReceipts.html    the built single file — this is the one you open
   index.html       editable source
   data.json        2,290 fighters x 8,880 career versions + the model
   aliases.json     reviewed search aliases, keyed by canonical fighter name
@@ -39,7 +40,7 @@ fightsim/
   PRODUCT-BRIEF.md durable product direction and future boundaries
 tools/
   build-data.py       rebuilds data.json from public UFC data (Python)
-  build-fightsim.mjs  validates aliases; bundles source + data + aliases + fonts
+  build-receipts.mjs  validates aliases; bundles source + data + aliases + fonts
   chromium-path.mjs   locates Chromium for Playwright testing
   test.mjs            the regression suite (npm test)
   shots.mjs           visual regression (npm run shots)
@@ -65,7 +66,7 @@ rasterises differently and turns all eight screens red for no real reason.
 
 ```bash
 # after editing index.html, data.json, aliases.json or fonts
-npm run build:fightsim
+npm run build:receipts
 npm test                 # drives the built file over file://
 npm run shots            # screenshots vs tools/baseline/
 
@@ -73,12 +74,12 @@ npm run shots            # screenshots vs tools/baseline/
 python3 -m venv .venv
 ./.venv/bin/pip install pandas numpy scikit-learn pyarrow
 ./.venv/bin/python tools/build-data.py
-npm run build:fightsim
+npm run build:receipts
 ```
 
 ## What it does and does not read
 
-FIGHT SIM is a distribution, not a winner service. It reads the 34 shipped
+MMA RECEIPTS is a distribution, not a winner service. It reads the 34 shipped
 career features and never sees a betting line. Injuries, camps, weight cuts and
 social chatter are not scored; the short Matchup Read says so rather than
 implying knowledge the model does not have.
@@ -91,7 +92,7 @@ event ledger.
 
 Canonical fighter names resolve after case, spacing, punctuation and diacritic
 normalization. Reviewed nicknames such as `Korean Zombie` live in
-`fightsim/aliases.json`; they are UI metadata, not model data. A typo can appear
+`receipts/aliases.json`; they are UI metadata, not model data. A typo can appear
 as a **CLOSE MATCH** in autocomplete, but fuzzy matching never silently selects
 a fighter. The user must confirm a suggestion, and unresolved names are
 declined.

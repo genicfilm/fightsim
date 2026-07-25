@@ -1,4 +1,4 @@
-// FIGHT SIM visual regression. Captures the canonical screens and diffs them
+// MMA RECEIPTS visual regression. Captures the canonical screens and diffs them
 // against committed baselines.
 //
 //   npm run shots            check against tools/baseline/
@@ -26,12 +26,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const built = path.join(root, "fightsim", "FightSim.html");
+const built = path.join(root, "receipts", "MMAReceipts.html");
 const baseDir = path.join(root, "tools", "baseline");
 const outDir = path.join(root, "tools", ".shots-out");
 
 if (!existsSync(built)) {
-  console.error("FightSim.html not found — run `npm run build:fightsim` first.");
+  console.error("MMAReceipts.html not found — run `npm run build:receipts` first.");
   process.exit(1);
 }
 const FILE = pathToFileURL(built).href;

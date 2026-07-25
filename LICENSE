@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 FIGHT SIM
+Copyright (c) 2026 MMA RECEIPTS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ underlying fight statistics, which are not this project's to license.
 Those statistics originate from UFCStats.com and are read via the public
 community mirror Greco1899/scrape_ufc_stats (GPL-3.0). This project does not
 scrape, contact, or otherwise access UFC systems; the pipeline reads the mirror's
-published CSVs only. What ships in fightsim/data.json is derived — rolling and
+published CSVs only. What ships in receipts/data.json is derived — rolling and
 recency-weighted averages, Elo, form, layoff and age features — rather than a
 reproduction of the source tape.
 
