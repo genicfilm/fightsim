@@ -87,6 +87,15 @@ const run = async (p) => {
   await p.evaluate(() => window.scrollTo(0, 0));
   await stilled(p);
 };
+// THE READ lands well below the verdict fold, so it needs its own frame rather
+// than a taller one — a 2,700px verdict shot would rewrite four baselines to
+// cover one new section. Scrolling is safe where `fullPage` is not: a viewport
+// capture renders the fixed cage where it belongs, it is a stitch that does not.
+const toRead = async (p) => {
+  await p.evaluate(() => document.getElementById("read").scrollIntoView({ block: "start" }));
+  await p.waitForTimeout(200);
+  await stilled(p);
+};
 
 const SCREENS = [
   { name: "method",    w: 1440, h: 900,  go: async () => {} },
@@ -94,9 +103,11 @@ const SCREENS = [
   { name: "one-corner",w: 1440, h: 1150, go: async (p) => { await enter(p); await pick(p, "Jon Jones", ""); } },
   { name: "tape",      w: 1440, h: 1250, go: async (p) => { await enter(p); await pick(p, "Jon Jones", "Tom Aspinall"); } },
   { name: "verdict",   w: 1440, h: 1750, go: async (p) => { await enter(p); await pick(p, "Israel Adesanya", "Alex Pereira"); await run(p); } },
+  { name: "read",      w: 1440, h: 1050, go: async (p) => { await enter(p); await pick(p, "Israel Adesanya", "Alex Pereira"); await run(p); await toRead(p); } },
   { name: "m-cold",    w: 390,  h: 844,  go: async (p) => { await enter(p); } },
   { name: "m-tape",    w: 390,  h: 1400, go: async (p) => { await enter(p); await pick(p, "Israel Adesanya", "Alex Pereira"); } },
   { name: "m-verdict", w: 390,  h: 1900, go: async (p) => { await enter(p); await pick(p, "Israel Adesanya", "Alex Pereira"); await run(p); } },
+  { name: "m-read",    w: 390,  h: 1500, go: async (p) => { await enter(p); await pick(p, "Israel Adesanya", "Alex Pereira"); await run(p); await toRead(p); } },
 ];
 
 // Diff in the browser: it already has a PNG decoder and a canvas, so this needs

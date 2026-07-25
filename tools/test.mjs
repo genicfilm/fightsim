@@ -36,7 +36,8 @@ const CONTRACT = [
   "stage", "na", "nb", "wgap", "pstep", "plabel", "pnum", "prail", "beam",
   "ca", "cb", "split", "status", "ret", "stream",
   "verdict", "stamp", "vmaj", "vmajs", "vmeth", "vmeths", "vconf", "vconfs",
-  "attr", "attrsub", "attrows", "attrl", "attrr",
+  "attr", "attrsub", "attrcx", "attrows", "attrl", "attrr",
+  "read", "prec", "prechead", "preccap", "precfig", "precex", "trk", "trka", "trkb",
   "dissent", "dhead", "dtext", "dquote", "save", "copy", "again", "saved", "refuse",
   "event", "evpanel", "ename", "ecard", "ewarn", "erun", "eout", "esave", "ejson", "eclose", "esaved",
 ];
@@ -179,6 +180,96 @@ ok("the tail headline outranks the supporting cells", tail.headSize > tail.cellS
 ok("the declared weight prior is shown as a term, never hidden",
    await page.$eval("#attrows", (e) => e.textContent.includes("CROSS-DIVISION MASS PRIOR")));
 
+/* ---------- THE READ ----------------------------------------------------
+   Two things are asserted here and they are different in kind.
+
+   The grouped ledger is an arithmetic claim about the panel: every column has a
+   family, no term is hidden any more, and the subtotals are the sums they say
+   they are. That last one is the whole reason this panel is trustworthy — it is
+   the same Σ the model computed, only sorted.
+
+   The precedent and record panels are a claim about the DATA: they read the
+   rolling-origin holdout that data.json now ships, so what is on screen has to
+   be that table and no other. If the shipped table ever stops reproducing the
+   accuracy the pipeline printed, every number in THE READ is quietly fiction —
+   which is the exact failure mode this project exists not to have. */
+console.log("\nTHE READ");
+const ledger = await page.evaluate(() => {
+  const num = (e) => +e.textContent.replace("−", "-");
+  const groups = [...document.querySelectorAll("#attrows .ar.g")].map((g) => {
+    const box = g.closest("details");
+    return {
+      name: g.querySelector(".an").textContent,
+      sum: num(g.querySelector(".av")),
+      members: box ? [...box.querySelectorAll(".ar.t .av")].map(num) : [],
+    };
+  });
+  return {
+    orphans: M.cols.filter((k) => groupOf(k) === "OTHER"),
+    groups,
+    stated: +(document.getElementById("attrsub").textContent.match(/ALL (\d+) NON-ZERO/) || [])[1],
+    z: +(document.getElementById("attrsub").textContent.match(/= ([+−][\d.]+) LOG-ODDS/) || [])[1]
+         .replace("−", "-"),
+    intercept: M.intercept,
+    cx: document.getElementById("attrcx").textContent,
+  };
+});
+ok("every model column has a named family", ledger.orphans.length === 0, ledger.orphans.join(", "));
+const drawn = ledger.groups.reduce((s, g) => s + (g.members.length || 1), 0);
+ok("no term is hidden — every non-zero one is drawn", drawn === ledger.stated,
+   `${drawn} drawn vs ${ledger.stated} stated`);
+const badSub = ledger.groups.filter((g) => g.members.length &&
+  Math.abs(g.members.reduce((s, v) => s + v, 0) - g.sum) > 0.02);
+ok("each family's subtotal is the sum of its own terms", badSub.length === 0,
+   badSub.map((g) => g.name).join(", "));
+// Sub-threshold terms (|c| < 0.005) are not drawn, so this is the sum of what is
+// shown against the sum the model reported — close, never exact by construction.
+ok("the families sum back to the posterior the model printed",
+   near(ledger.groups.reduce((s, g) => s + g.sum, 0), ledger.z - ledger.intercept, 0.06),
+   `${ledger.groups.reduce((s, g) => s + g.sum, 0)} vs ${ledger.z - ledger.intercept}`);
+ok("gross and net are both stated", /GROSS ±[\d.]+ · NET [+−][\d.]+ · \d+% CANCELS/.test(ledger.cx),
+   ledger.cx);
+
+const ho = await page.evaluate(() => {
+  let right = 0;
+  for (const f of HO.fights) if ((f[3] >= 5000) === (f[4] === 1)) right++;
+  const conf = +document.getElementById("vconf").textContent;
+  const head = document.getElementById("prechead").textContent;
+  const cap = document.getElementById("preccap").textContent;
+  const m = head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.THE FAVOURITE WON ([\d,]+)\./)
+        || head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.\s*THE FAVOURITE WON ([\d,]+)\./);
+  const band = cap.match(/CONFIDENCE ([\d.]+)–([\d.]+)/);
+  return {
+    rows: HO.fights.length, width: HO.fights[0].length, acc: right / HO.fights.length,
+    unknown: HO.names.filter((n) => !(n in FI)).length,
+    conf, headN: m && +m[1].replace(/,/g, ""), headHit: m && +m[2].replace(/,/g, ""),
+    lo: band && +band[1], hi: band && +band[2],
+    realised: +document.querySelector("#precfig b").textContent.replace("%", ""),
+    // the thesis, checkable: at the bottom of the refusal band the model's own
+    // held-out record is a coin flip
+    deep: precedent(0.52).rate,
+    jones: record("Jon Jones"),
+    trka: document.getElementById("trka").textContent,
+  };
+});
+ok("the shipped holdout is one row per real bout, six fields wide",
+   ho.width === 6 && ho.rows > 0, `${ho.rows}×${ho.width}`);
+ok("every fighter in the holdout is in the index", ho.unknown === 0, `${ho.unknown} unknown`);
+ok("the precedent headline is arithmetically consistent with the panel",
+   ho.headN > 0 && ho.headHit <= ho.headN &&
+   near((ho.headHit / ho.headN) * 100, ho.realised, 0.06),
+   `${ho.headHit}/${ho.headN} vs ${ho.realised}%`);
+ok("the quoted band brackets this fight's confidence",
+   ho.lo <= ho.conf && ho.hi >= ho.conf, `${ho.lo}–${ho.hi} vs ${ho.conf}`);
+ok("deep in the refusal band its own record is a coin flip",
+   near(ho.deep, 0.5, 0.04), `realised ${ho.deep.toFixed(3)} at conf 0.52`);
+ok("the record panel prints the count the table actually holds",
+   ho.trka.includes(`${ho.jones.right} OF ${ho.jones.n}`),
+   `${ho.jones.right} OF ${ho.jones.n} not in "${ho.trka.slice(0, 60)}"`);
+ok("THE READ sits after the tail, not in front of it",
+   await page.evaluate(() => !!(document.getElementById("dissent").compareDocumentPosition(
+     document.getElementById("read")) & Node.DOCUMENT_POSITION_FOLLOWING)));
+
 console.log("\nCard & reset");
 const card = await page.evaluate(async () => { await document.fonts.ready; const c = drawCard(); return [c.width, c.height]; });
 ok("card exports at 2160×2700", card[0] === 2160 && card[1] === 2700, card.join("×"));
@@ -237,6 +328,13 @@ await m.waitForSelector("#verdict.on", { timeout: 30000 });
 await m.waitForTimeout(500);
 ok("all rollouts still counted with motion reduced", (await m.evaluate(() => SIM.counted)) === 1000);
 ok("no horizontal overflow", !(await m.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)));
+// St-Pierre's last bout is 2017, so the test window holds nothing of his. The
+// panel has to say that rather than render a confident "0 of 0" — an ungraded
+// fighter and a fighter the model got wrong every time must not look alike.
+ok("a fighter with no held-out bouts is declared, not faked",
+   (await m.$eval("#trka", (e) => e.textContent)).includes("NEVER GRADED"));
+ok("the graded corner still reports a real count",
+   /\d+ OF \d+/.test(await m.$eval("#trkb", (e) => e.textContent)));
 
 /* ---------- 5. the hard constraints, as assertions ----------
    These were four rules in a markdown file that a change could break silently.
@@ -290,6 +388,18 @@ if (!existsSync(metricsFile)) {
   ok("tools/metrics.txt exists — run build-data.py", false);
 } else {
   const txt = readFileSync(metricsFile, "utf8");
+  // THE READ reads the shipped holdout instead of a summary of it, so the table
+  // in the file has to BE the one the published accuracy came from. Compare it
+  // against the reproduction check build-data.py prints — the whole panel is
+  // fiction the moment these diverge, and nothing else here would notice.
+  const tbl = txt.match(/THE READ table\s+:\s+(\d+) fights[\s\S]*?reproduces accuracy\s+:\s+([\d.]+)/);
+  ok("metrics.txt records THE READ table", !!tbl);
+  if (tbl) {
+    ok("the shipped holdout is the pipeline's own held-out set",
+       ho.rows === +tbl[1], `file ${ho.rows} vs pipeline ${tbl[1]}`);
+    ok("and it still reproduces the accuracy the pipeline measured",
+       near(ho.acc, +tbl[2], 0.0001), `file ${ho.acc.toFixed(4)} vs pipeline ${tbl[2]}`);
+  }
   const thr = txt.match(/below 0\.58\s+([\d.]+)% of fights, realised ([\d.]+)\s+at\/above\s+([\d.]+)%, realised ([\d.]+)/);
   const hdr = txt.match(/accuracy ([\d.]+)%\s+Brier ([\d.]+)\s+ECE ([\d.]+) pts\s+worst band ([\d.]+) pts\s+N (\d+)/);
   const MET = await page.evaluate(() => MET);

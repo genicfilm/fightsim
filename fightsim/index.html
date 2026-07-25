@@ -539,6 +539,93 @@ input::placeholder{color:#3a3a44}
   border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;
   letter-spacing:.09em;color:#4e4e58}
 .attr .tot b{color:#9a9aa4;font-weight:400}
+/* Grouped rows. 34 terms flat is a list; six families with subtotals is an
+   argument, and the subtotal is the number that actually answers "why". The
+   members stay one click away rather than gone — <details> so it costs no JS
+   and no state. One shared bar scale across groups AND members on purpose: a
+   family whose members cancel should visibly have a short bar over long ones. */
+.ag{border-bottom:1px solid var(--line-2)}
+.ag:last-of-type{border-bottom:0}
+.ag>summary{list-style:none;cursor:pointer}
+.ag>summary::-webkit-details-marker{display:none}
+.ar.g .an{color:var(--ink);letter-spacing:.13em}
+/* Scoped to rows that actually open. The weight prior is a single term drawn as
+   its own row with no members under it, and a bare `.ar.g .an::after` offered it
+   a "+" that did nothing when clicked. */
+.ag>summary .ar.g .an::after{content:" +";color:var(--grey)}
+.ag[open]>summary .ar.g .an::after{content:" −"}
+.ag>summary:hover .an{color:#fff}
+.ar.g .av{font-size:11px}
+.agb{padding:2px 0 9px}
+.ar.t .an{font-size:9px;color:#6e6e78;padding-left:12px}
+.ar.t .at{height:6px}.ar.t .at i{height:6px}.ar.t .at u{top:-2px;height:10px}
+.ar.t .av{font-size:9px}
+
+/* ---- THE READ -----------------------------------------------------------
+   The holdout, queried live. Panels rather than one box, because the three
+   questions are separate: what happened at this reading, how it has done on
+   these two, and what moved the number. */
+.read{margin-bottom:var(--sp-4)}
+.read h3{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.34em;
+  color:var(--grey);font-weight:400;margin-bottom:var(--sp-2)}
+.read h3 span{color:var(--ink)}
+.rlede{font-size:13px;font-weight:500;color:#8e8e98;line-height:1.55;
+  margin-bottom:var(--sp-3);max-width:64ch}
+.rlede b{color:#c8c8ce;font-weight:600}
+.pnl{border:1px solid var(--line);background:#0b0b0f;padding:17px 18px 16px;
+  margin-bottom:var(--sp-3)}
+.pnl h4{font-family:var(--mono);font-size:9.5px;letter-spacing:.34em;color:var(--grey);
+  font-weight:400;margin-bottom:var(--sp-3)}
+.phead{font-family:Anton;font-size:clamp(20px,2.6vw,31px);line-height:1.1;
+  color:var(--ink);letter-spacing:.005em;text-wrap:balance}
+.phead b{color:var(--red);font-weight:400}
+.pcap{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:#4e4e58;
+  margin-top:var(--sp-2)}
+/* same three-figure block as the front page's refusal strip — one pattern for
+   "here is the measured thing", used in both places it appears */
+.pfig{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);
+  margin-top:var(--sp-3)}
+.pfig>div{flex:1;background:var(--surf-2);padding:12px 13px}
+.pfig b{display:block;font-family:Anton;font-size:26px;color:var(--ink);line-height:1}
+.pfig em{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  color:var(--grey);font-style:normal;margin:6px 0 4px}
+.pfig span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.03em;
+  color:#4e4e58;line-height:1.5}
+/* Two receipts, one hit and one miss from the same band. State is carried by
+   WEIGHT, not hue — the same rule the verdict stamp follows, and for the same
+   reason: blue and red mean BLUE CORNER and RED CORNER everywhere else on this
+   page, and these cards sit directly above a panel where they genuinely do.
+   A blue "IT WAS RIGHT" beside a red "IT WAS WRONG" reads as the two fighters.
+   The miss is the louder of the two, which is the right way round here. */
+/* Scoped to their containers, not bare. `.tk` was already the tale of the
+   tape's 3px gap track — a bare `.tk{padding:14px;border-top:2px}` here put a
+   panel border on every row of the tape, moved 7.6% of the pixels on a screen
+   this section is not even visible on, and the assertion suite stayed green
+   through all of it. Grep before naming a class; scope it once you have. */
+.pex{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:var(--sp-3)}
+.pex .rc{border:1px solid var(--line);background:var(--surf-2);padding:13px 14px 12px;
+  border-left:3px solid var(--line)}
+.pex .rc.y{border-left-color:#3a3a45}
+.pex .rc.n{border-left-color:var(--ink)}
+.pex .rc b{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;
+  color:var(--grey);font-weight:400;margin-bottom:8px}
+.pex .rc.n b{color:var(--ink)}
+.pex .rc u{display:block;font-family:Anton;font-size:19px;color:var(--ink);
+  text-decoration:none;line-height:1.1}
+.pex .rc i{display:block;font-size:12.5px;font-style:normal;color:#8e8e98;margin-top:4px}
+.pex .rc span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;
+  color:#4e4e58;margin-top:8px}
+.trks{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.trks .trec{background:var(--surf-2);padding:14px 15px 13px;border-top:2px solid var(--line)}
+.trks .trec.a{border-top-color:var(--blue)}.trks .trec.b{border-top-color:var(--red)}
+.trks .trec b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  color:var(--grey);font-weight:400;margin-bottom:9px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trks .trec u{display:block;font-family:Anton;font-size:25px;color:var(--ink);
+  text-decoration:none;line-height:1}
+.trks .trec i{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  font-style:normal;color:var(--grey);margin-top:6px}
+.trks .trec span{display:block;font-size:12.5px;color:#7e7e88;line-height:1.5;margin-top:9px}
 
 /* verdict */
 .verdict{display:none;margin-top:30px}
@@ -643,7 +730,14 @@ input::placeholder{color:#3a3a44}
   .sim{height:214px}
   .ar{grid-template-columns:124px 1fr 38px;gap:7px}
   .ar .an{font-size:8px;letter-spacing:.02em}
-  .attr h4{letter-spacing:.2em}
+  .ar.t .an{padding-left:7px;font-size:7.5px}
+  .attr h4,.pnl h4{letter-spacing:.2em}
+  /* the two receipts and the two corners stack — side by side at 390px each
+     column is ~170px, which puts a fighter's name on three lines */
+  .pex,.trks{grid-template-columns:1fr}
+  .trks{gap:1px}
+  .pfig{flex-direction:column}
+  .pfig b{font-size:23px}
 }
 @media(prefers-reduced-motion:reduce){
   .tape.on,.tape.duel .pvs span,.hex .grow{animation:none}
@@ -816,12 +910,45 @@ input::placeholder{color:#3a3a44}
         <div class="q" id="dquote">—</div>
         <p id="dtext">—</p>
       </div>
-      <div class="attr" id="attr">
-        <h4>WHAT MOVED THE POSTERIOR</h4>
-        <div class="sub" id="attrsub">—</div>
-        <div id="attrows"></div>
-        <div class="tot"><span id="attrl">—</span><span id="attrr">—</span></div>
-      </div>
+      <!-- THE READ.
+           The product used to end here — one posterior, one tail, and eight
+           attribution rows. Everything else the model knew about the matchup
+           was computed and then thrown away, which is why the answer arrived
+           and nothing followed it.
+
+           This is that reasoning put back, plus the only thing a model can
+           honestly offer past a number: its own record. data.json now ships the
+           rolling-origin holdout itself, so the two questions below are live
+           queries over the same 3,404 bouts the published accuracy comes from —
+           what happened the other times it read a fight this way, and how it has
+           done on these two fighters. Neither is a new estimate. -->
+      <section class="read" id="read">
+        <h3>THE <span>READ</span></h3>
+        <p class="rlede">The rolling-origin holdout ships inside this file: every bout the model
+          was tested on and never trained on, each with the posterior it produced at the time and
+          what actually happened. Everything below is that record, queried for this fight.</p>
+
+        <div class="pnl" id="prec">
+          <h4>PRECEDENT · THE RECORD AT THIS READING</h4>
+          <div class="phead" id="prechead">—</div>
+          <div class="pcap" id="preccap">—</div>
+          <div class="pfig" id="precfig"></div>
+          <div class="pex" id="precex"></div>
+        </div>
+
+        <div class="pnl" id="trk">
+          <h4>ITS RECORD ON THESE TWO</h4>
+          <div class="trks"><div id="trka"></div><div id="trkb"></div></div>
+        </div>
+
+        <div class="attr" id="attr">
+          <h4>WHAT MOVED THE POSTERIOR</h4>
+          <div class="sub" id="attrsub">—</div>
+          <div class="sub" id="attrcx">—</div>
+          <div id="attrows"></div>
+          <div class="tot"><span id="attrl">—</span><span id="attrr">—</span></div>
+        </div>
+      </section>
       <div class="acts">
         <button class="save" id="save">EXPORT THE CARD</button>
         <button class="again" id="copy">Copy image</button>
@@ -838,7 +965,7 @@ input::placeholder{color:#3a3a44}
 </div>
 
 <script>
-let M=null,FI=null,NAMES=[];
+let M=null,FI=null,HO=null,NAMES=[];
 const $=id=>document.getElementById(id);
 const N_JURORS=1000;
 
@@ -852,7 +979,7 @@ const MET={ THR:0.58, REFUSE:40, REFUSE_ACC:'52.0', CALL:60, CALL_ACC:'67.2',
             ECE:'1.1', WORST:'2.5', N:'3,404' };
 
 function boot(d){
-  M=d.model; FI=d.fighters; NAMES=Object.keys(FI).sort();
+  M=d.model; FI=d.fighters; HO=d.holdout||null; NAMES=Object.keys(FI).sort();
   $('refuse').innerHTML=
      `<div><b>${MET.REFUSE}%</b><em>REFUSED</em>`
       +`<span>OF FIGHTS REFUSED<br>UNDER A ${MET.THR} POSTERIOR</span></div>`
@@ -1613,29 +1740,200 @@ var FEATNAME={
   ko_abs3:'RECENT KO LOSSES', h:'HEIGHT', r:'REACH', age:'AGE',
   age_sq:'AGE CURVE', sw:'SOUTHPAW STANCE', elo:'ELO RATING', wt:'LISTED WEIGHT'
 };
+/* Six families over the model's 34 columns. Every column must match exactly one
+   — the suite asserts it, so adding a feature to the model without giving it a
+   home here fails the build rather than quietly landing in a bucket labelled
+   OTHER. Order here is the tiebreak order; groups are drawn by subtotal. */
+const GROUPS=[
+  ['STRIKING',      /^(ew|ca)_f_(slpm|sapm|sacc|sdef)$/],
+  ['GRAPPLING',     /^(ew|ca)_f_(td15|tddef|ctrl|sub15)$/],
+  ['DAMAGE',        /^(ew|ca)_f_(kd15|kdabs)$|^ko_abs3$/],
+  ['RATING',        /^elo$/],
+  ['RECORD & FORM', /^(n|winrate|form3|form5|layoff|career_len)$/],
+  ['PHYSICAL',      /^(h|r|age|age_sq|sw|wt)$/],
+];
+const groupOf=k=>(GROUPS.find(g=>g[1].test(k))||['OTHER'])[0];
+
 function renderAttr(A,B,D){
-  const v=D.base, prior=D.prior, p=D.p, terms=[];
-  let z=M.intercept+(prior||0), nz=0;
+  const v=D.base, prior=D.prior, p=D.p;
+  let z=M.intercept+(prior||0), gross=Math.abs(prior||0), nz=0;
+  const by=new Map(GROUPS.map(g=>[g[0],[]]));
   for(let i=0;i<D.T.length;i++){
-    const c=D.T[i];
-    if(Math.abs(c)>=0.005){ nz++; terms.push({k:M.cols[i],c,imp:v[i]==null}); }
+    const c=D.T[i], k=M.cols[i];
+    z+=c; gross+=Math.abs(c);
+    if(Math.abs(c)<0.005) continue;
+    nz++;
+    const g=groupOf(k);
+    if(!by.has(g)) by.set(g,[]);
+    by.get(g).push({k,c,imp:v[i]==null});
   }
-  if(prior){ nz++; terms.push({k:'__prior',c:prior,imp:false}); }
-  for(let i=0;i<D.T.length;i++) z+=D.T[i];
-  terms.sort((a,b)=>Math.abs(b.c)-Math.abs(a.c));
-  const top=terms.slice(0,8), max=Math.max(0.05,...top.map(t=>Math.abs(t.c)));
-  $('attrows').innerHTML=top.map(t=>{
-    const side=t.c>0?'a':'b', w=Math.min(50,Math.abs(t.c)/max*50);
-    const nm=t.k==='__prior'?'CROSS-DIVISION MASS PRIOR':(FEATNAME[t.k]||t.k);
-    return `<div class="ar p${side}"><span class="an">${nm}${t.imp?' · IMPUTED':''}</span>`+
-      `<span class="at"><u></u><i class="${side}" style="${side==='a'?'right':'left'}:50%;`+
-      `width:${w.toFixed(1)}%"></i></span>`+
-      `<span class="av">${t.c>0?'+':'−'}${Math.abs(t.c).toFixed(2)}</span></div>`;
+  const groups=[...by.entries()].filter(([,t])=>t.length).map(([name,t])=>({
+    name, terms:t.sort((a,b)=>Math.abs(b.c)-Math.abs(a.c)),
+    sum:t.reduce((s,x)=>s+x.c,0)}));
+  if(prior){ nz++; groups.push({name:'CROSS-DIVISION MASS PRIOR',terms:[],sum:prior}); }
+  groups.sort((a,b)=>Math.abs(b.sum)-Math.abs(a.sum));
+
+  // One scale across subtotals AND members, so a family that cancels internally
+  // reads as a short bar over long ones — which is the thing worth seeing.
+  const max=Math.max(0.05,...groups.map(g=>Math.abs(g.sum)),
+                          ...groups.flatMap(g=>g.terms.map(t=>Math.abs(t.c))));
+  const bar=(c,cls)=>{
+    const side=c>0?'a':'b', w=Math.min(50,Math.abs(c)/max*50);
+    return {side,html:`<span class="at"><u></u><i class="${side}" `+
+      `style="${side==='a'?'right':'left'}:50%;width:${w.toFixed(1)}%"></i></span>`+
+      `<span class="av">${c>0?'+':'−'}${Math.abs(c).toFixed(2)}</span>`};
+  };
+  const row=(label,c,cls)=>{
+    const b=bar(c);
+    return `<div class="ar ${cls} p${b.side}"><span class="an">${label}</span>${b.html}</div>`;
+  };
+  $('attrows').innerHTML=groups.map(g=>{
+    if(!g.terms.length) return row(g.name,g.sum,'g');
+    return `<details class="ag"><summary>${row(g.name,g.sum,'g')}</summary>`+
+      `<div class="agb">`+g.terms.map(t=>
+        row((FEATNAME[t.k]||t.k)+(t.imp?' · IMPUTED':''),t.c,'t')).join('')+`</div></details>`;
   }).join('');
-  $('attrsub').textContent=`TOP 8 OF ${nz} NON-ZERO TERMS · `+
+
+  $('attrsub').textContent=`ALL ${nz} NON-ZERO TERMS, GROUPED · `+
     `Σ INCL. INTERCEPT = ${z>=0?'+':'−'}${Math.abs(z).toFixed(2)} LOG-ODDS → P = ${p.toFixed(3)}`;
+  /* Gross against net. Two fights can land on the same posterior for opposite
+     reasons — nothing separating the pair, or a great deal separating them in
+     both directions at once — and the single number cannot tell them apart.
+     Σ|term| against |Σ term| can. Both are already computed above; the model is
+     linear, so this is arithmetic rather than an interpretation of it. */
+  const net=Math.abs(z), cx=gross>0?1-net/gross:0;
+  $('attrcx').textContent=`GROSS ±${gross.toFixed(2)} · NET ${z>=0?'+':'−'}${net.toFixed(2)} · `+
+    `${(cx*100).toFixed(0)}% CANCELS — `+
+    (cx>=.80?'CLOSE BECAUSE THE EVIDENCE OFFSETS, NOT BECAUSE THERE IS NONE'
+     :cx>=.5?'SUBSTANTIAL OFFSET BETWEEN THE TWO SIDES'
+            :'LITTLE OFFSET — THE TERMS LARGELY AGREE');
   $('attrl').innerHTML=`◀ TOWARD <b>${A.toUpperCase()}</b>`;
   $('attrr').innerHTML=`TOWARD <b>${B.toUpperCase()}</b> ▶`;
+}
+
+/* ---------- THE READ: the held-out record, queried live ---------------------
+   data.json ships the rolling-origin holdout itself — one row per real bout,
+   carrying the out-of-fold posterior the model produced for it at the time and
+   what actually happened. tools/build-data.py writes it from the very
+   predictions the published accuracy is computed from and prints the
+   reproduction check into tools/metrics.txt.
+
+   So nothing here is a new estimate or a second model. It is that table sliced
+   two ways: by the posterior now on screen, and by the two fighters in it. */
+const HO_BAND=0.025, HO_MIN=20, HO_THIN=6;
+let HOC=null,HOBY=null;
+
+function hoSorted(){                       // every held-out bout, by confidence
+  if(HOC) return HOC;
+  HOC=HO.fights.map(f=>{
+    const p=f[3]/1e4, aFav=p>=.5;
+    return {y:f[2], c:aFav?p:1-p, hit:aFav===(f[4]===1), q:f[5],
+            fav:HO.names[aFav?f[0]:f[1]], opp:HO.names[aFav?f[1]:f[0]]};
+  }).sort((a,b)=>a.c-b.c);
+  return HOC;
+}
+function hoByName(){
+  if(HOBY) return HOBY;
+  HOBY=new Map();
+  HO.fights.forEach((f,i)=>{
+    // eight names in the source tape belong to two fighters each, so a name can
+    // in principle land on both sides of one row; count it once
+    for(const n of new Set([HO.names[f[0]],HO.names[f[1]]])){
+      if(!HOBY.has(n)) HOBY.set(n,[]);
+      HOBY.get(n).push(i);
+    }
+  });
+  return HOBY;
+}
+/* Every held-out fight the model read within HO_BAND of this confidence. The
+   window is fixed rather than a fixed sample size, so a rare reading reports a
+   small n and says so — "it has only been this sure 23 times" is the true
+   answer, not a reason to quietly reach further down the curve. Past the top of
+   the curve there is no window left, so it falls back to the nearest HO_MIN and
+   prints the range it actually covered. */
+function precedent(conf){
+  const all=hoSorted();
+  let band=all.filter(r=>Math.abs(r.c-conf)<=HO_BAND), widened=false;
+  if(band.length<HO_MIN){
+    band=all.slice().sort((x,y)=>Math.abs(x.c-conf)-Math.abs(y.c-conf))
+             .slice(0,HO_MIN).sort((x,y)=>x.c-y.c);
+    widened=true;
+  }
+  const hits=band.filter(r=>r.hit);
+  /* One hit and one miss, quoted back. They are picked by the WEAKER fighter's
+     Elo going in, not by date: the point of quoting a fight is that you might
+     remember it, and the newest bout in any band is whichever prelim opened the
+     most recent card. Deterministic, and Array#sort is stable, so the same two
+     fights come back on every run — which is what lets the screenshot suite
+     diff a screen containing them at all. */
+  const best=a=>a.slice().sort((x,y)=>y.q-x.q||y.y-x.y)[0]||null;
+  return {n:band.length, hit:hits.length, widened,
+          lo:band[0].c, hi:band[band.length-1].c,
+          rate:hits.length/band.length,
+          claim:band.reduce((s,r)=>s+r.c,0)/band.length,
+          right:best(hits), wrong:best(band.filter(r=>!r.hit))};
+}
+function record(name){
+  const ix=hoByName().get(name);
+  if(!ix||!ix.length) return null;
+  let right=0,sp=0,won=0;
+  for(const i of ix){
+    const f=HO.fights[i], mine=HO.names[f[0]]===name;
+    const p=(mine?f[3]:1e4-f[3])/1e4, w=mine?f[4]:1-f[4];
+    sp+=p; won+=w; if((p>=.5)===(w===1)) right++;
+  }
+  return {n:ix.length, right, won, meanP:sp/ix.length};
+}
+
+function renderRead(A,B,conf){
+  if(!HO){ $('prec').style.display='none'; $('trk').style.display='none'; return; }
+  const P=precedent(conf), gap=Math.abs(P.rate-P.claim)*100;
+  $('prechead').innerHTML=
+    `IT READ <b>${P.n.toLocaleString()}</b> HELD-OUT ${P.n===1?'FIGHT':'FIGHTS'} THIS WAY.<br>`+
+    `THE FAVOURITE WON <b>${P.hit.toLocaleString()}</b>.`;
+  $('preccap').textContent=
+    `CONFIDENCE ${P.lo.toFixed(3)}–${P.hi.toFixed(3)}`+
+    (P.widened?' · WIDENED TO THE NEAREST '+HO_MIN+', THIS READING IS RARE':'')+
+    ` · 2018–2026 HOLDOUT`;
+  $('precfig').innerHTML=
+     `<div><b>${(P.rate*100).toFixed(1)}%</b><em>REALISED</em>`
+      +`<span>THE FAVOURITE'S ACTUAL<br>SHARE IN THIS BAND</span></div>`
+    +`<div><b>${P.claim.toFixed(3)}</b><em>IT CLAIMED</em>`
+      +`<span>MEAN POSTERIOR<br>ACROSS THE SAME FIGHTS</span></div>`
+    /* Descriptive, never editorial. This caption used to read "a coin flip is
+       what a refusal is made of" whenever the stamp said REFUSED — but the
+       threshold is 0.58 and a fight refused at 0.573 lands in a band that
+       realised 57.6%, which is not a coin flip. The claim is only true deep in
+       the refusal zone. The numbers say where this one actually sits. */
+    +`<div><b>${gap.toFixed(1)}</b><em>POINTS APART</em>`
+      +`<span>HOW FAR THE CLAIM SAT<br>FROM WHAT HAPPENED</span></div>`;
+  const rc=(r,won)=>r
+    ? `<div class="rc ${won?'y':'n'}"><b>${won?'IT WAS RIGHT':'IT WAS WRONG'}</b>`+
+      `<u>${r.fav}</u><i>${won?'beat':'lost to'} ${r.opp}</i>`+
+      `<span>${r.y} · READ ${r.c.toFixed(3)}</span></div>`
+    : `<div class="rc"><b>—</b><u>NONE IN THIS BAND</u></div>`;
+  $('precex').innerHTML=rc(P.right,true)+rc(P.wrong,false);
+
+  const tk=(name,side)=>{
+    const R=record(name);
+    if(!R) return `<div class="trec ${side}"><b>${name}</b><u>NEVER GRADED</u>`+
+      `<i>NO BOUT IN THE TEST WINDOW</i><span>No fight here between 2018 and 2026, so the `+
+      `model has no held-out record on this fighter at all.</span></div>`;
+    /* Counts and the mean, and no adjective. An earlier version compared mean
+       posterior against realised win rate and called the gap "consistently
+       over/under-rated", which is not something six fights can support — and
+       worse, it is guaranteed: a calibrated model never says 1.00, so any
+       fighter who happens to be undefeated across their holdout run reads as
+       under-rated by construction. That is selection, not miscalibration. */
+    return `<div class="trec ${side}"><b>${name}</b><u>${R.right} OF ${R.n}</u>`+
+      `<i>READ CORRECTLY, HELD OUT</i><span>`+
+      `Mean posterior ${R.meanP.toFixed(2)} · won ${R.won} of ${R.n}. `+
+      (R.n<HO_THIN
+        ? `Too few fights to read anything into.`
+        : `One fighter's own run is streaky — a record, not a calibration test.`)+
+      `</span></div>`;
+  };
+  $('trka').innerHTML=tk(A,'a'); $('trkb').innerHTML=tk(B,'b');
 }
 
 /* ---------- run ---------- */
@@ -1727,6 +2025,7 @@ function render(A,B,D){
       :'UNPERTURBED · BAND 0.58–0.70 · WEAK SEPARATION');
 
   renderAttr(A,B,D);
+  renderRead(A,B,conf);
 
   const dis=jurors.filter(j=>j.win===minr);
   // Drawn from the finishes so the quote has a picture in it — which makes it
@@ -1753,6 +2052,7 @@ function render(A,B,D){
     : 'NO TAIL RECORDED. ALL 1,000 ROLLOUTS AGREED.';
   const methods={}; jurors.forEach(j=>methods[j.method]=(methods[j.method]||0)+1);
   LAST={A,B,a,b,maj,minr,majN,minN,hung,confident,conf,ex,exi,exFin,methods,
+        prec:HO?precedent(conf):null,
         wt:{gap:D.gap,da:D.da,db:D.db,prior:D.prior,va:D.va,vb:D.vb}};
   $('saved').textContent='';
   $('verdict').classList.add('on');
@@ -1928,17 +2228,38 @@ function drawCard(){
   const qs=fit(x,q,'Anton',W-M*2-52,30,14);
   x.fillStyle=INK; x.font=`${qs}px Anton`; x.fillText(q,M+26,qy+62);
 
-  // the thesis
-  const ty=qy+134;
+  /* The thesis, now in three tiers: the claim, the local evidence for it, and
+     the global fine print. The middle line is new and it is the reason to add
+     anything to a card this tight — a posterior is an assertion, but "it read
+     834 fights this way and the favourite won 480" is a receipt, and the card
+     is the only part of this that travels. Same footprint as the two lines it
+     replaced: ty moved up 10px and the old second line became the fine print.
+     fit() guards the width, so a five-figure count cannot run into the margin. */
+  const ty=qy+124;
   x.font='600 27px Barlow'; x.fillStyle='#b8b8be';
   x.fillText(hung?'This model refuses this fight.'
     :(confident?'Maximum separation the model produces.':'A lean. Not a call.'),M,ty);
-  x.fillStyle=GREY;
+  const P=LAST.prec;
+  if(P){
+    // Past the top of the curve there is no band left and precedent() falls back
+    // to the nearest HO_MIN. The panel says so in its caption; the card has no
+    // caption, so it says so in the sentence instead. "It read 20 fights this
+    // way" would be a quiet overstatement of how common a 0.90 reading is.
+    const pl=P.widened
+      ? `Its ${P.n} closest held-out reads to this one: `
+        +`the favourite won ${P.hit} — ${(P.rate*100).toFixed(1)}%.`
+      : `It read ${P.n.toLocaleString()} held-out fights this way. `
+        +`The favourite won ${P.hit.toLocaleString()} — ${(P.rate*100).toFixed(1)}%.`;
+    x.fillStyle=GREY;
+    x.font=`600 ${fit(x,pl,'Barlow',W-M*2,27,17)}px Barlow`;
+    x.fillText(pl,M,ty+34);
+  }
+  x.font='600 15px Barlow'; x.fillStyle='#5a5a64';
   x.fillText(hung
     ? `Under ${MET.THR} it realised ${MET.REFUSE_ACC}% across ${MET.N} held-out fights. `
       +`That is why it declines.`
     : `Unperturbed posterior ${conf.toFixed(3)} · ${majN}–${minN} under the declared `
-      +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+34);
+      +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+64);
 
   // footer
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();

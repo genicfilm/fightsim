@@ -134,6 +134,29 @@ def main():
     tot['r'] = pd.to_numeric(tot['REACH'].astype(str).str.extract(r'(\d+)')[0], errors='coerce')
     tot['dob'] = pd.to_datetime(tot['DOB'], format='mixed', errors='coerce')
     tot['lbs'] = pd.to_numeric(tot['WEIGHT'].astype(str).str.extract(r'(\d+)')[0], errors='coerce')
+    # The model only needs a southpaw flag, but the tale of the tape needs the
+    # real stance — 'Switch' is 142 of 2,290 fighters and calling them orthodox
+    # would be a plain factual error on screen.
+    #
+    # Eight names in the source tape belong to two different fighters ("Mike
+    # Davis", "Bruno Silva", "Jean Silva"...), and this index is keyed by name,
+    # so those entries are already a blend. Collapse to the FIRST NON-EMPTY
+    # stance per name — and do it here, before the dedupe below, which is the
+    # whole point: Mike Davis' first row is entirely blank, so a filter applied
+    # afterwards has nothing left to recover and silently dropped his stance
+    # between two builds of otherwise bit-identical data. Height, reach and DOB
+    # still come from that first row, so a duplicated name remains a blend;
+    # this fixes the field that was regressing, not the shared-name problem.
+    #
+    # Missing is normalised in plain Python, not through `.astype(str)`. Under
+    # pandas 2 that turned a missing stance into the string "nan" and the filter
+    # below caught it; under pandas 3's dedicated `str` dtype it stays NA, the
+    # filter passes it through, and the blank row wins the dedupe again. Same
+    # silent single-fighter diff, one library version later.
+    stance = (tot.assign(_s=['' if pd.isna(v) else str(v).strip() for v in tot['STANCE']])
+                 .query("_s != '' and _s != 'nan'")
+                 .drop_duplicates('FIGHTER')
+                 .set_index('FIGHTER')['_s'])
     tot = tot.drop_duplicates('FIGHTER')
     F = F.merge(tot[['FIGHTER','h','r','dob','STANCE']], on='FIGHTER', how='left')
     F['age'] = (F['DATE'] - F['dob']).dt.days/365.25
@@ -176,32 +199,38 @@ def main():
     Be = Fe.add_suffix('_b').rename(columns={'EVENT_b':'EVENT','BOUT_b':'BOUT','FIGHTER_b':'f2'})
     X = dec.merge(Ae, on=['EVENT','BOUT','f1']).merge(Be, on=['EVENT','BOUT','f2'])
     lbs = tot.set_index('FIGHTER')['lbs']
-    # The model only needs a southpaw flag, but the tale of the tape needs the
-    # real stance — 'Switch' is 142 of 2,290 fighters and calling them orthodox
-    # would be a plain factual error on screen.
-    # Duplicated names exist in the source tape ("Mike Davis", "Bruno Silva"),
-    # so this index is not unique and .get() on it returns a Series rather than
-    # a string under some pandas versions — which silently dropped one fighter's
-    # stance between two builds of otherwise bit-identical data. Collapse to the
-    # first non-empty value per name so the output cannot depend on the library.
-    stance = (tot.assign(_s=tot['STANCE'].astype(str).str.strip())
-                 .query("_s != '' and _s != 'nan'")
-                 .drop_duplicates('FIGHTER')
-                 .set_index('FIGHTER')['_s'])
     D = pd.DataFrame({f: X[f+'_a'] - X[f+'_b'] for f in FEATS})
     D['elo'] = X['elo_a'] - X['elo_b']
     D['wt'] = (X['f1'].map(lbs) - X['f2'].map(lbs)).astype(float)
     COLS = list(D.columns)
     D['y'] = (X['OUTCOME']=='W/L').astype(int).values
     D['DATE'] = pd.to_datetime(X['DATE'].values)
+    # Carry both corners through the mirror so a held-out prediction can be
+    # traced back to the bout it was made about. THE READ needs that: given the
+    # posterior on screen it shows the held-out fights the model read the same
+    # way, and what actually happened in them. `mir` marks the reflected copy —
+    # it carries provably zero extra information, so only the real orientation
+    # is exported.
+    D['f1'] = X['f1'].values
+    D['f2'] = X['f2'].values
+    # The WEAKER fighter's Elo going in. THE READ quotes two real fights back at
+    # you and they have to be fights you might remember, so it needs a ranking
+    # signal — and "most recent" is not one: it surfaces whichever prelim opened
+    # the newest card. The minimum rather than the sum on purpose, because a
+    # 1800-vs-1400 mismatch is not a marquee bout. Symmetric, so it needs no sign
+    # flip under the mirror, and it is not in COLS so the model never sees it.
+    D['q'] = np.minimum(X['elo_a'].values, X['elo_b'].values)
+    D['mir'] = 0
     mir = D.copy(); mir[COLS] = -mir[COLS]; mir['y'] = 1 - mir['y']
+    mir['f1'], mir['f2'] = D['f2'].values, D['f1'].values
+    mir['mir'] = 1
     D = pd.concat([D, mir], ignore_index=True).sort_values('DATE').reset_index(drop=True)
     D[COLS] = D[COLS].replace([np.inf,-np.inf], np.nan)
 
     def pipe():
         return make_pipeline(SimpleImputer(strategy='median'), StandardScaler(),
                              LogisticRegression(C=0.3, max_iter=3000))
-    accs, P, Y = [], [], []
+    accs, P, Y, HO = [], [], [], []
     for yr in range(2018, 2027):
         tr = D[D['DATE'] < f'{yr}-01-01']
         te = D[(D['DATE'] >= f'{yr}-01-01') & (D['DATE'] < f'{yr+1}-01-01')]
@@ -210,6 +239,11 @@ def main():
         p = pipe().fit(tr[COLS], tr['y']).predict_proba(te[COLS])[:,1]
         accs.append(((p > .5).astype(int) == te['y'].values).mean())
         P.append(p); Y.append(te['y'].values)
+        k = te['mir'].values == 0                 # one row per real bout
+        HO.append(pd.DataFrame({'f1': te['f1'].values[k], 'f2': te['f2'].values[k],
+                                'yr': te['DATE'].dt.year.values[k],
+                                'p': p[k], 'w': te['y'].values[k],
+                                'q': te['q'].values[k]}))
     p, y = np.concatenate(P), np.concatenate(Y)
     sure = np.abs(p-.5) > .20
     print(f"\n  held-out accuracy 2018-2026 : {np.mean(accs):.4f}")
@@ -268,6 +302,23 @@ def main():
     bands("equal width 0.10", [.50,.60,.70,.80,1.0])
     say()
     say("per-year held-out accuracy 2018-2026: " + " ".join(f"{a:.3f}" for a in accs))
+    # ---- THE READ's table --------------------------------------------------
+    # The same held-out predictions the accuracy above is computed from, one row
+    # per real bout, shipped so the browser can answer two questions live:
+    #   - which held-out fights did the model read the way it just read yours,
+    #     and how often was the favourite right in that band;
+    #   - how has it done on these two fighters specifically.
+    # Nothing here is a new estimate. It is the rolling-origin holdout itself,
+    # exposed instead of summarised — which is why the reproduction check below
+    # is printed and asserted rather than trusted.
+    ho = pd.concat(HO, ignore_index=True)
+    hp, hw = ho['p'].values, ho['w'].values
+    say()
+    say(f"THE READ table                : {len(ho)} fights, one row per real bout")
+    say(f"  reproduces accuracy         : {((hp>.5).astype(int)==hw).mean():.4f}"
+        f"   (pooled mirrored {((p>.5).astype(int)==y).mean():.4f})")
+    say(f"  distinct fighters in it     : {len(set(ho['f1']) | set(ho['f2']))}")
+
     say()
     say("THE NUMBERS THE UI IS ALLOWED TO PRINT")
     say(f"  accuracy {np.mean(accs)*100:.1f}%   Brier {((p-y)**2).mean():.3f}   "
@@ -275,6 +326,14 @@ def main():
     open(os.path.join(ROOT, "tools", "metrics.txt"), "w").write("\n".join(out) + "\n")
     print("\n  wrote tools/metrics.txt")
     # ------------------------------------------------------------------------
+
+    hnames = sorted(set(ho['f1']) | set(ho['f2']))
+    hidx = {n: i for i, n in enumerate(hnames)}
+    holdout = {'names': hnames,
+               'fights': [[hidx[a], hidx[b], int(yr_), int(round(pp*10000)), int(ww),
+                           int(round(qq))]
+                          for a, b, yr_, pp, ww, qq
+                          in ho[['f1', 'f2', 'yr', 'p', 'w', 'q']].itertuples(index=False)]}
 
     final = pipe().fit(D[COLS], D['y'])
     imp, sc, lr = (s[1] for s in final.steps)
@@ -313,10 +372,11 @@ def main():
     if not os.path.isdir(outdir):
         sys.exit(f"\n  target directory missing: {outdir}\n"
                  "  this script writes into the existing app folder — it must not create one.")
-    json.dump({'model': model, 'fighters': fighters}, open(OUT, 'w'), separators=(',', ':'))
+    json.dump({'model': model, 'fighters': fighters, 'holdout': holdout},
+              open(OUT, 'w'), separators=(',', ':'))
     print(f"\n  wrote {OUT}")
     print(f"  {len(fighters)} fighters · {sum(len(v['v']) for v in fighters.values())} versions"
-          f" · {os.path.getsize(OUT)/1024/1024:.2f} MB")
+          f" · {len(holdout['fights'])} held-out bouts · {os.path.getsize(OUT)/1024/1024:.2f} MB")
     print("  now run: npm run build:fightsim")
 
 

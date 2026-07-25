@@ -39,8 +39,10 @@ anywhere, or emailed to someone as a single attachment.
 - `FightSim.html` — the built single file. **This is the one you open.**
 - `index.html` — editable source. Autocomplete, tale of the tape, the sim,
   attribution, the tail.
-- `data.json` — 2,290 fighter career states + the model (coefficients, means,
-  scales, imputation values). 1.9 MB.
+- `data.json` — 2,290 fighter career states, the model (coefficients, means,
+  scales, imputation values), and the rolling-origin holdout itself: 3,404 real
+  bouts with the out-of-fold posterior the model produced for each and what
+  actually happened. 2.0 MB.
 - `fonts/` — Anton + Barlow Condensed.
 - `../tools/build-fightsim.mjs` — bundles the three into `FightSim.html`.
 
@@ -300,12 +302,61 @@ they are real.*
 Shown once, remembered in `localStorage`, reopenable from `METHOD` in the
 masthead, dismissable with `Escape`.
 
-## What moved the posterior
+## THE READ
 
-The panel under the result is the model's own arithmetic: `coef × scaled
-feature`, one term per feature, sorted by magnitude, diverging blue/red about a
-zero midpoint. Positive log-odds point at the blue corner because the model is
-fit as `P(A)` on the difference vector `a − b`.
+The product used to end at the tail: one posterior, one shareable line, and an
+eight-row attribution panel. Everything else the model knew about the matchup
+was computed and thrown away, so the answer arrived and nothing followed it.
+THE READ is that reasoning put back, in three panels.
+
+### Precedent — the held-out record at this reading
+
+`data.json` ships the holdout rather than a summary of it. Given the posterior on
+screen, the browser takes every held-out bout the model read within **±0.025
+confidence** of it and reports how often the favourite actually won.
+
+That is not a second model or a new estimate. It is the published calibration
+curve sliced locally, off the same predictions the 61.2% comes from — which is
+why `tools/build-data.py` prints a reproduction check into `tools/metrics.txt`
+and `npm test` fails if the shipped table stops matching it. Two numbers on
+screen and one table behind them; if they ever disagree the panel is fiction.
+
+The window is fixed rather than the sample size, so a rare reading reports a
+small `n` and says so. Past the top of the curve there is no window left, so it
+falls back to the nearest 20 and prints the range it actually covered — the page
+in its caption, the card in its sentence.
+
+It also quotes back one fight it got right and one it got wrong from the same
+band. Those are picked by the **weaker fighter's Elo going in**, never by date:
+the point of quoting a fight is that you might remember it, and the most recent
+bout in any band is whichever prelim opened the newest card. Deterministic, so
+`npm run shots` can diff a screen containing them.
+
+This is where the refusal stops being a policy and becomes a receipt. Deep in
+the refusal band the model's own held-out record is a coin flip, on screen, on
+that fight — and the suite asserts it.
+
+### Its record on these two
+
+The same table, sliced by fighter instead of by posterior: how many held-out
+bouts each corner appears in and how many the model read correctly.
+
+It reports counts and the mean posterior, and **no adjective**. An earlier draft
+compared mean posterior against realised win rate and called the gap
+"consistently over/under-rated" — which six fights cannot support, and which is
+guaranteed anyway: a calibrated model never says 1.00, so any fighter who
+happens to be undefeated across their holdout run reads as under-rated by
+construction. That is selection, not miscalibration.
+
+A fighter with no bout in the 2018–2026 window reads **NEVER GRADED**, never
+"0 of 0". An ungraded fighter and one the model got wrong every time must not
+look alike.
+
+### What moved the posterior
+
+The model's own arithmetic: `coef × scaled feature`, one term per feature,
+diverging blue/red about a zero midpoint. Positive log-odds point at the blue
+corner because the model is fit as `P(A)` on the difference vector `a − b`.
 
 This is the line between this and a video-game stat screen. A game invents an
 attribute rating; this shows the terms that were actually summed, labels which
@@ -314,8 +365,32 @@ total passing through the sigmoid to the posterior on screen. If the sum does
 not equal the number, the panel is visibly lying — which is the point of
 printing it.
 
-The cross-division mass prior, when it fires, appears as one more term in the
-same list at its exact log-odds. It is not allowed to hide.
+All 34 columns are grouped into six families — STRIKING, GRAPPLING, DAMAGE,
+RATING, RECORD & FORM, PHYSICAL — each drawn at its subtotal with its own terms
+one click away in a `<details>`. Six subtotals is an argument where 34 flat rows
+is a list, and nothing is hidden any more: the panel used to draw the top 8 and
+drop the rest. **Every column must match exactly one family** and the suite
+asserts it, so adding a feature to the model without giving it a home fails the
+build rather than landing in a bucket called OTHER.
+
+Group subtotals and member terms share one bar scale on purpose. A family whose
+members cancel — PHYSICAL at `+0.22` net over `LISTED WEIGHT −0.21`,
+`REACH +0.19`, `AGE +0.17` — should visibly have a short bar over long ones.
+
+The cross-division mass prior, when it fires, appears as one more row at its
+exact log-odds. It is not allowed to hide.
+
+### Gross against net
+
+`Σ|term|` against `|Σ term|`, printed under the panel with the share that
+cancels.
+
+Two fights can land on the same posterior for opposite reasons — nothing
+separating the pair, or a great deal separating them in both directions at once
+— and the single number cannot tell them apart. Jones vs Aspinall is `±3.78`
+gross against `−0.21` net: **95% cancels**. That is a close fight with a great
+deal in it, not an empty one. Both quantities were already computed; the model
+is linear, so this is arithmetic rather than an interpretation of it.
 
 ## The palette
 
