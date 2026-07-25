@@ -8,7 +8,9 @@
     "build:fightsim": "node tools/build-fightsim.mjs",
     "test": "node tools/test.mjs",
     "shots": "node tools/shots.mjs",
-    "shots:update": "node tools/shots.mjs --update"
+    "shots:update": "node tools/shots.mjs --update",
+    "publish": "node tools/publish.mjs",
+    "ledger": "node tools/ledger.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.61.1"
