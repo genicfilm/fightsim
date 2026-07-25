@@ -32,6 +32,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const CONTRACT = [
   "intro", "ienter", "method", "nf", "nfeat", "fpc",
   "ia", "ib", "aca", "acb", "sa", "sb", "va", "vb", "go", "warn",
+  "pick", "pika", "pikn", "pikb", "pickres",
   "tape", "pna", "pva", "pda", "pnb", "pvb", "pdb", "cw", "rows", "hex",
   "stage", "na", "nb", "wgap", "pstep", "plabel", "pnum", "prail", "beam",
   "ca", "cb", "split", "status", "ret", "stream",
@@ -107,6 +108,18 @@ ok("out-of-distribution gap is flagged before the button",
    await page.$eval("#cw", (e) => e.classList.contains("on")));
 ok("7 tape rows", (await page.$$eval("#rows .tr", (n) => n.length)) === 7);
 
+// YOUR READ — the reader's call, recorded before the reveal. Optional, and
+// invisible until the matchup is real, so the cold page is unchanged.
+ok("YOUR READ appears only when the matchup is real",
+   await page.$eval("#pick", (e) => e.classList.contains("on")) &&
+   (await page.$eval("#pika", (e) => e.textContent)) === "JON JONES" &&
+   (await page.$eval("#pikb", (e) => e.textContent)) === "TOM ASPINALL");
+await page.click("#pikn");
+ok("a call selects", await page.$eval("#pikn", (e) => e.classList.contains("sel")));
+await page.click("#pikn");
+ok("a second tap withdraws it", !(await page.$eval("#pikn", (e) => e.classList.contains("sel"))));
+await page.click("#pikn");   // call NO EDGE for the run below
+
 /* ---------- 2. the pipeline, at full motion ---------- */
 console.log("\nPipeline");
 await page.selectOption("#sa", { index: await page.$eval("#sa", (s) => [...s.options].findIndex((o) => o.textContent.includes("PRIME"))) });
@@ -151,6 +164,24 @@ ok("stamp matches its band",
    inv.conf < 0.58 ? inv.stamp === "REFUSED · NO EDGE"
    : inv.conf >= 0.70 ? inv.stamp === "CONVERGED" : inv.stamp === "LOW SEPARATION", inv.stamp);
 ok("attribution lists terms and prints Σ", inv.attrRows > 0 && /Σ INCL\. INTERCEPT/.test(inv.attrsub));
+
+// YOUR READ, answered. NO EDGE was called before the run above; the strip must
+// frame the outcome as agreement or dissent with the model — never as right or
+// wrong, because nobody knows the result yet — and tally exactly one call.
+const pk = await page.evaluate(() => ({
+  on: document.getElementById("pickres").classList.contains("on"),
+  txt: document.getElementById("pickres").textContent,
+  tally: JSON.parse(localStorage.getItem("fightsim.reads") || "{}"),
+  hung: LAST.hung,
+}));
+ok("the read is answered as agreement, never as accuracy",
+   pk.on && pk.txt.includes("NOT ACCURACY") && !/\bWRONG\b|\bCORRECT\b/.test(pk.txt),
+   pk.txt.slice(0, 90));
+ok("the strip means what it says",
+   pk.hung ? pk.txt.includes("YOU CALLED THE REFUSAL") : pk.txt.includes("YOU REFUSED"),
+   `hung=${pk.hung} · ${pk.txt.slice(0, 60)}`);
+ok("one run tallies one call",
+   (pk.tally.agree || 0) + (pk.tally.dissent || 0) === 1, JSON.stringify(pk.tally));
 
 const brief = await page.evaluate(() => {
   const box = document.getElementById("brief");
@@ -375,6 +406,7 @@ await page.waitForTimeout(400);
 ok("reset restores the entry screen",
    await page.evaluate(() => document.getElementById("go").disabled &&
      !document.getElementById("tape").classList.contains("on") &&
+     !document.getElementById("pick").classList.contains("on") &&
      document.getElementById("ia").value === ""));
 
 /* ---------- 3. edge inputs ---------- */

@@ -360,6 +360,48 @@ input::placeholder{color:#3a3a44}
   text-align:center;letter-spacing:.05em;text-wrap:balance}
 .hint span{color:var(--red);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 
+/* YOUR READ — hidden until a real matchup is on the tape, so the cold page
+   still reads as two fields and a button. Selection wears the corner's color;
+   NO EDGE wears the house grey, because refusing is a first-class answer here,
+   not a shrug. Every rule is scoped under .pick — bare class names have burned
+   this file twice. */
+.pick{display:none;margin-top:var(--sp-3);border:1px solid var(--line);border-radius:2px;
+  padding:13px 16px 15px}
+.pick.on{display:block}
+.pick .pklabel{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  color:var(--grey);margin-bottom:10px}
+.pick .pkbtns{display:flex;gap:10px;flex-wrap:wrap}
+.pick .pkbtn{flex:1;min-width:130px;background:var(--surf-3);border:1px solid var(--line);
+  color:var(--ink);font-family:Anton;font-size:16px;letter-spacing:.05em;padding:10px 14px;
+  cursor:pointer;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:border-color var(--dur-tick),color var(--dur-tick),background var(--dur-tick)}
+.pick .pkbtn.pn{color:var(--grey);flex:0 1 auto;order:2}
+.pick .pkbtn.pb{order:3}
+.pick .pkbtn:hover{border-color:#3a3a44}
+.pick .pkbtn.pa.sel{border-color:var(--blue);color:var(--blue);background:rgba(43,127,255,.08)}
+.pick .pkbtn.pn.sel{border-color:#8e8e98;color:var(--ink);background:rgba(140,140,152,.10)}
+.pick .pkbtn.pb.sel{border-color:var(--red);color:var(--red);background:rgba(224,26,34,.08)}
+
+/* the read, answered — appears in the verdict only when a call was made */
+.pickres{display:none;margin-top:14px;border:1px solid var(--line);
+  border-left:3px solid #8e8e98;border-radius:2px;padding:14px 16px}
+.pickres.on{display:block}
+.pickres b{display:block;font-family:Anton;font-size:22px;letter-spacing:.02em;
+  font-weight:400;color:var(--ink)}
+.pickres span{display:block;margin-top:6px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;color:var(--grey);line-height:1.7}
+.pickres .pkt{margin-top:8px;color:#6c6c76}
+/* Narrow: the two corners share a row so they read as a pair, and the refusal
+   takes the full row beneath — it is an answer, not an afterthought. */
+@media(max-width:620px){
+  .pick .pkbtns{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .pick .pkbtn{min-width:0;font-size:15px;padding:11px 10px}
+  /* the desktop order lives on .pick .pkbtn.pn / .pb — two-class selectors, so
+     the reset has to match that specificity or grid places them 1, 3, 2 */
+  .pick .pkbtn.pa,.pick .pkbtn.pb{order:0}
+  .pick .pkbtn.pn{order:0;grid-column:1/-1}
+}
+
 /* stage */
 .stage{display:none;margin-top:6px}
 .stage.on{display:block}
@@ -1016,6 +1058,20 @@ input::placeholder{color:#3a3a44}
     </section>
 
     <div class="warn" id="warn"></div>
+    <!-- YOUR READ — an optional call recorded before the reveal. The point of
+         the whole product is committing before the result; this hands the same
+         move to the reader. Skippable: RUN works without it. -->
+    <div class="pick" id="pick">
+      <span class="pklabel">YOUR READ — CALL IT BEFORE THE SIM RUNS</span>
+      <!-- DOM order is corner, corner, NO EDGE so a narrow screen can put the
+           two fighters side by side and give the refusal its own full-width
+           row. Desktop reorders in CSS to put the refusal back in the middle. -->
+      <div class="pkbtns">
+        <button class="pkbtn pa" id="pika">—</button>
+        <button class="pkbtn pb" id="pikb">—</button>
+        <button class="pkbtn pn" id="pikn">NO EDGE</button>
+      </div>
+    </div>
     <button class="go" id="go" disabled>RUN THE SIM</button>
     <div class="hint">SEED THE SIM · <span data-a="Jon Jones" data-b="Tom Aspinall">Jones vs Aspinall</span> ·
       <span data-a="Georges St-Pierre" data-b="Islam Makhachev">GSP vs Makhachev</span> ·
@@ -1043,6 +1099,7 @@ input::placeholder{color:#3a3a44}
         <div class="cell"><b>Model confidence</b><u id="vconf">—</u><small id="vconfs">—</small></div>
         <div class="cell"><b>Illustrative ending</b><u id="vmeth">—</u><small id="vmeths">—</small></div>
       </div>
+      <div class="pickres" id="pickres"></div>
       <div class="next">
         <span>NEXT · CARRY THIS MATCHUP INTO A WHOLE-CARD SCORECARD</span>
         <button class="save" id="eventresult">BUILD AN EVENT SCORECARD</button>
@@ -1725,11 +1782,65 @@ function check(announce=false){
   else if(a&&b&&a===b) msg='DEGENERATE MATCHUP — THE FEATURE DELTA IS THE ZERO VECTOR.';
   $('warn').textContent=msg;
   $('go').disabled=!(a&&b&&a!==b);
+  syncPick(a,b);
 }
 $('ia').addEventListener('input',()=>check()); $('ib').addEventListener('input',()=>check());
 document.querySelectorAll('.hint span').forEach(s=>s.onclick=()=>{
   $('ia').value=s.dataset.a; $('ib').value=s.dataset.b; check();
 });
+
+/* YOUR READ — an optional call recorded before the reveal. The whole product is
+   committing before the result; this hands the reader the same move. On settle
+   it is compared with the model and tallied as agreement or dissent — never as
+   right or wrong, because nobody knows the result yet and the model is a
+   baseline, not an answer key. */
+let PICK=null, PICKKEY='', RUNPICK=null;
+const PKEY='fightsim.reads';
+function syncPick(a,b){
+  const on=!!(a&&b&&a!==b);
+  const key=on?`${a}|${b}`:'';
+  if(key!==PICKKEY){                    // new matchup = new call; nothing carries
+    PICKKEY=key; PICK=null;
+    ['pika','pikn','pikb'].forEach(i=>$(i).classList.remove('sel'));
+  }
+  if(on){ $('pika').textContent=a.toUpperCase(); $('pikb').textContent=b.toUpperCase(); }
+  $('pick').classList.toggle('on',on);
+}
+[['pika','A'],['pikn','N'],['pikb','B']].forEach(([id,v])=>{
+  $(id).onclick=()=>{
+    PICK=PICK===v?null:v;               // second tap withdraws the call
+    $('pika').classList.toggle('sel',PICK==='A');
+    $('pikn').classList.toggle('sel',PICK==='N');
+    $('pikb').classList.toggle('sel',PICK==='B');
+  };
+});
+function renderPick(A,B,maj,hung){
+  const el=$('pickres');
+  if(!RUNPICK){ el.classList.remove('on'); el.innerHTML=''; return; }
+  const you=RUNPICK==='N'?null:(RUNPICK==='A'?A:B);
+  const model=hung?null:maj;
+  const agree=you===model;
+  let head,sub;
+  if(agree&&!you){ head='YOU CALLED THE REFUSAL.';
+    sub='YOU SAID NO EDGE BEFORE THE SIM DID.'; }
+  else if(agree){ head='YOU AND THE RECORD AGREE.';
+    sub=`BOTH READS LANDED ON ${esc(you.toUpperCase())} — YOURS BEFORE THE REVEAL.`; }
+  else if(!you){ head='YOU REFUSED. THE RECORD LEANS.';
+    sub=`YOU SAID NO EDGE — THE RECORD LEANS ${esc(model.toUpperCase())}.`; }
+  else if(!model){ head='YOU CALLED IT. THE RECORD DECLINED.';
+    sub=`YOU TOOK ${esc(you.toUpperCase())} — THE RECORD FOUND NO EDGE.`; }
+  else{ head='YOU DISSENT FROM THE RECORD.';
+    sub=`YOU TOOK ${esc(you.toUpperCase())} — THE RECORD LEANS ${esc(model.toUpperCase())}.`; }
+  let t={agree:0,dissent:0};
+  try{ t=JSON.parse(localStorage.getItem(PKEY))||t; }catch(e){}
+  agree?t.agree++:t.dissent++;
+  try{ localStorage.setItem(PKEY,JSON.stringify(t)); }catch(e){}
+  el.style.borderLeftColor=agree?'#8e8e98':(RUNPICK==='A'?'var(--blue)':RUNPICK==='B'?'var(--red)':'#8e8e98');
+  el.innerHTML=`<b>${head}</b><span>${sub}</span>`
+    +`<span class="pkt">YOUR RECORD VS THE RECORD · AGREED ${t.agree} · DISSENTED ${t.dissent}`
+    +` · AGREEMENT, NOT ACCURACY — NOBODY KNOWS THE RESULT YET</span>`;
+  el.classList.add('on');
+}
 
 /* ---------- the pipeline ----------------------------------------------------
    This used to be a spark storm. It was replaced because decoration on a
@@ -2386,6 +2497,7 @@ $('go').onclick=()=>{
   // the exported card all print the index's spelling rather than the typing
   const A=resolve($('ia').value), B=resolve($('ib').value);
   if(!A||!B) return;
+  RUNPICK=PICK;                 // the call locks the moment the sim starts
   const D=empanel(A,B,+$('sa').value,+$('sb').value);
   // everything the pipeline draws is derived here, once, from the same vectors
   // the model consumed — the animation cannot show a number the model did not use
@@ -2506,6 +2618,7 @@ function render(A,B,D){
         prec:HO?precedent(conf):null,
         wt:{gap:D.gap,da:D.da,db:D.db,prior:D.prior,va:D.va,vb:D.vb}};
   $('saved').textContent='';
+  renderPick(A,B,maj,hung);
   $('verdict').classList.add('on');
   drawCal();                       // #precfig only has a width once it is shown
   // Contract the run before moving to the result. The stream has stopped, so it

@@ -65,6 +65,13 @@ const boot = async (p) => {
 // 460ms and start AFTER the 160ms blur handler, so the hex and the diamond were
 // still moving when the shutter fired and m-tape flickered by 0.234% a run.
 const stilled = async (p) => {
+  // Park the pointer first. Playwright leaves the mouse wherever it last
+  // clicked, so a shot silently carries whatever :hover that lands on — and
+  // which element that is depends on layout ABOVE it. Adding the YOUR READ row
+  // pushed #go down 153px, so after the entry panel hid, the resting pointer
+  // landed on the EVENT button and m-verdict failed at 1.719% with the verdict
+  // itself completely unchanged. Corner (1,1) is decorative and inert.
+  await p.mouse.move(1, 1);
   await p.evaluate(() => Promise.all(
     document.getAnimations().map((a) => a.finished.catch(() => {}))));
   await p.waitForTimeout(80);
