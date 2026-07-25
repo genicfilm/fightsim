@@ -326,6 +326,22 @@ small `n` and says so. Past the top of the curve there is no window left, so it
 falls back to the nearest 20 and prints the range it actually covered — the page
 in its caption, the card in its sentence.
 
+**It is drawn, not stated.** The panel used to be three large numbers under six
+lines of caption explaining what they meant. It is now a plot of realised against
+claimed across all seven bands, and the caption is the axes: the dots climb, they
+sit on the `y = x` diagonal rather than above it, the refusal zone is shaded, and
+a caret marks where this fight landed. Two things a reader gets in one look and
+could not get from the numbers — that the model earns its confidence, and that
+below the threshold there is nothing there. Position encoding, so the truncated
+y-axis is legitimate; it is labelled at 50%, 70% and 88%.
+
+The curve is drawn at **real pixel size**, never through a responsive `viewBox`.
+A scaled viewBox scales the type with the geometry: axis labels set at 8.5px for
+a 1,064px desktop rendered at 4px on a 390px phone. `#precfig` lives inside
+`#verdict`, which is `display:none` until the run settles, so it has no width to
+measure at render time — `drawCal()` runs once the verdict is up, and again on
+resize. The suite asserts the `viewBox` has not come back.
+
 It also quotes back one fight it got right and one it got wrong from the same
 band. Those are picked by the **weaker fighter's Elo going in**, never by date:
 the point of quoting a fight is that you might remember it, and the most recent
@@ -341,12 +357,13 @@ that fight — and the suite asserts it.
 The same table, sliced by fighter instead of by posterior: how many held-out
 bouts each corner appears in and how many the model read correctly.
 
-It reports counts and the mean posterior, and **no adjective**. An earlier draft
-compared mean posterior against realised win rate and called the gap
-"consistently over/under-rated" — which six fights cannot support, and which is
-guaranteed anyway: a calibrated model never says 1.00, so any fighter who
-happens to be undefeated across their holdout run reads as under-rated by
-construction. That is selection, not miscalibration.
+Two marks on one 0–1 track — hollow for what the model claimed, filled for what
+happened — and **no adjective**. An earlier draft said this in prose and called
+the gap "consistently over/under-rated", which six fights cannot support, and
+which is guaranteed anyway: a calibrated model never says 1.00, so any fighter
+who happens to be undefeated across their holdout run reads as under-rated by
+construction. That is selection, not miscalibration. Plotted, the gap is visible
+and asserts nothing.
 
 A fighter with no bout in the 2018–2026 window reads **NEVER GRADED**, never
 "0 of 0". An ungraded fighter and one the model got wrong every time must not
@@ -382,8 +399,9 @@ exact log-odds. It is not allowed to hide.
 
 ### Gross against net
 
-`Σ|term|` against `|Σ term|`, printed under the panel with the share that
-cancels.
+`Σ|term|` against `|Σ term|`, drawn as two bars on one scale under the panel with
+the share that cancels. `npm test` asserts the net bar's width *is* `net/gross` —
+a picture that does not match its own caption is worse than the caption alone.
 
 Two fights can land on the same posterior for opposite reasons — nothing
 separating the pair, or a great deal separating them in both directions at once

@@ -12,7 +12,7 @@ Quick reference:
 ```bash
 python3 tools/build-data.py  # regenerates data.json + tools/metrics.txt (needs pandas/sklearn)
 npm run build:fightsim   # fightsim/index.html + data.json + fonts -> FightSim.html
-npm test                 # 77 assertions over file:// — must be green before you ship
+npm test                 # 83 assertions over file:// — must be green before you ship
 npm run shots            # 10 screens vs tools/baseline/ — catches what npm test cannot
 node tools/ledger.mjs    # grade ledger/*.json -> ledger/README.md
 ```

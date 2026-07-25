@@ -25,7 +25,7 @@ competitor has, and the reason the refusals have to stay honest.
 
 ```bash
 npm run build:fightsim    # fightsim/index.html + data.json + fonts -> fightsim/FightSim.html
-npm test                  # 77 assertions, drives the BUILT file with Playwright over file://
+npm test                  # 83 assertions, drives the BUILT file with Playwright over file://
 npm run shots             # 10 screens diffed against tools/baseline/ — layout regressions
 npm run shots:update      # accept the current screens as the new baseline
 ```
@@ -160,7 +160,7 @@ here. Who else does it is not our claim to make.
 
 ## The DOM contract
 
-`npm test` asserts all 84 of these ids exist. You may restyle, re-nest, or
+`npm test` asserts all 86 of these ids exist. You may restyle, re-nest, or
 re-order any of them. **Renaming or removing one silently breaks the page.**
 
 **Class names are not covered by anything.** `.hero` is already the tape's ELO
@@ -177,6 +177,15 @@ pixels on a screen THE READ is not even visible on**, with all 77 assertions
 green. It cost one `npm run shots` to find and would have cost a release to miss.
 Grep, then scope: every rule in that section is now `.pex .rc`, `.trks .trec`.
 
+**Never a blob of prose where a graphic will do.** THE READ shipped with the
+right numbers and four paragraphs of explanation around them, and the answer was
+"there's way too much stuff." Every one of those paragraphs was a bounded
+quantity described in words: a band's realised rate (a calibration curve), a
+fighter's claimed-vs-actual (two marks on one track), gross against net (two
+bars), binary entropy (a gauge against its own ceiling of 1.000). Each of them is
+now drawn, and **each of them is asserted to be drawn to the number it prints** —
+a picture that does not match its own caption is worse than the caption alone.
+
 **`npm test` cannot see layout — `npm run shots` can.** That exact bug was
 reinjected to check: `npm test` reported 42/42 while three screens moved by
 4–12% of their pixels. Run both before you ship.
@@ -186,7 +195,7 @@ If you need to rename an id, update `fightsim/index.html` and `CONTRACT` in
 
 | Area | ids |
 |---|---|
-| THE READ | `read` `prec` `prechead` `preccap` `precfig` `precex` `trk` `trka` `trkb` |
+| THE READ | `read` `rmeta` `prec` `prechead` `preccap` `precfig` `precex` `trk` `trka` `trkb` |
 | Method screen | `intro` `ienter` `method` |
 | Masthead | `nf` `nfeat` |
 | Entry | `ia` `ib` `aca` `acb` `sa` `sb` `va` `vb` `go` `warn` |
@@ -196,7 +205,7 @@ If you need to rename an id, update `fightsim/index.html` and `CONTRACT` in
 | Tally | `ca` `cb` `split` `status` `ret` `stream` |
 | Verdict | `verdict` `stamp` `vmaj` `vmajs` `vmeth` `vmeths` `vconf` `vconfs` |
 | Attribution | `attr` `attrsub` `attrcx` `attrows` `attrl` `attrr` |
-| Tail & actions | `dissent` `dhead` `dtext` `dquote` `save` `copy` `again` `saved` |
+| Tail & actions | `dissent` `dhead` `dtext` `dquote` `dent` `save` `copy` `again` `saved` |
 
 `#beam` is a `<canvas>` sized from its parent `.sim` by `simSize()`. Change
 `.sim`'s height in CSS and the canvas follows — do not set canvas width/height

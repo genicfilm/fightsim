@@ -37,8 +37,8 @@ const CONTRACT = [
   "ca", "cb", "split", "status", "ret", "stream",
   "verdict", "stamp", "vmaj", "vmajs", "vmeth", "vmeths", "vconf", "vconfs",
   "attr", "attrsub", "attrcx", "attrows", "attrl", "attrr",
-  "read", "prec", "prechead", "preccap", "precfig", "precex", "trk", "trka", "trkb",
-  "dissent", "dhead", "dtext", "dquote", "save", "copy", "again", "saved", "refuse",
+  "read", "rmeta", "prec", "prechead", "preccap", "precfig", "precex", "trk", "trka", "trkb",
+  "dissent", "dhead", "dtext", "dquote", "dent", "save", "copy", "again", "saved", "refuse",
   "event", "evpanel", "ename", "ecard", "ewarn", "erun", "eout", "esave", "ejson", "eclose", "esaved",
 ];
 
@@ -227,8 +227,19 @@ ok("each family's subtotal is the sum of its own terms", badSub.length === 0,
 ok("the families sum back to the posterior the model printed",
    near(ledger.groups.reduce((s, g) => s + g.sum, 0), ledger.z - ledger.intercept, 0.06),
    `${ledger.groups.reduce((s, g) => s + g.sum, 0)} vs ${ledger.z - ledger.intercept}`);
-ok("gross and net are both stated", /GROSS ±[\d.]+ · NET [+−][\d.]+ · \d+% CANCELS/.test(ledger.cx),
-   ledger.cx);
+// Gross and net are drawn to one scale, so the bar has to BE the ratio it
+// prints. A picture that does not match its own caption is worse than the
+// caption alone — this is the assertion that keeps it honest.
+const cx = await page.evaluate(() => {
+  const n = (s) => Math.abs(+document.querySelector(s).textContent.replace(/[±+−]/g, (c) => c === "−" ? "-" : ""));
+  return { gross: n(".cxb .cr.g b"), net: n(".cxb .cr.n b"),
+           bar: parseFloat(document.querySelector(".cxb .cr.n u i").style.width),
+           label: +document.querySelector(".cxb .cx em").textContent.replace("% CANCELS", "") };
+});
+ok("the net bar is drawn to the same scale as the gross bar",
+   near(cx.bar, cx.net / cx.gross * 100, 0.6), `${cx.bar}% vs ${(cx.net / cx.gross * 100).toFixed(1)}%`);
+ok("the cancelled share matches the two bars",
+   near(cx.label, (1 - cx.net / cx.gross) * 100, 1), `${cx.label}% vs ${((1 - cx.net / cx.gross) * 100).toFixed(1)}%`);
 
 const ho = await page.evaluate(() => {
   let right = 0;
@@ -236,31 +247,69 @@ const ho = await page.evaluate(() => {
   const conf = +document.getElementById("vconf").textContent;
   const head = document.getElementById("prechead").textContent;
   const cap = document.getElementById("preccap").textContent;
-  const m = head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.THE FAVOURITE WON ([\d,]+)\./)
-        || head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.\s*THE FAVOURITE WON ([\d,]+)\./);
+  const m = head.match(/IT READ ([\d,]+) HELD-OUT FIGHTS? THIS WAY\.\s*THE FAVOURITE WON ([\d,]+) — ([\d.]+)%\./);
   const band = cap.match(/CONFIDENCE ([\d.]+)–([\d.]+)/);
+  const svg = document.querySelector("#precfig svg");
+  const B = calBands();
   return {
     rows: HO.fights.length, width: HO.fights[0].length, acc: right / HO.fights.length,
     unknown: HO.names.filter((n) => !(n in FI)).length,
     conf, headN: m && +m[1].replace(/,/g, ""), headHit: m && +m[2].replace(/,/g, ""),
+    realised: m && +m[3],
     lo: band && +band[1], hi: band && +band[2],
-    realised: +document.querySelector("#precfig b").textContent.replace("%", ""),
     // the thesis, checkable: at the bottom of the refusal band the model's own
     // held-out record is a coin flip
     deep: precedent(0.52).rate,
     jones: record("Jon Jones"),
     trka: document.getElementById("trka").textContent,
+    // the curve: one dot per band, every held-out bout inside one, and drawn at
+    // real pixel size rather than through a viewBox that would shrink its own
+    // axis labels to 4px on a phone
+    bands: B.length, dots: svg ? svg.querySelectorAll("circle").length : -1,
+    binned: B.reduce((s, b) => s + b.n, 0),
+    scaled: !!svg && (svg.hasAttribute("viewBox") || !svg.getAttribute("width")),
+    climbs: B.every((b, i) => i === 0 || b.rate >= B[i - 1].rate - 0.02),
+    // the record track: the two marks sit where the numbers say they do
+    mark: (() => {
+      const R = record(document.querySelector("#trka .trec b").textContent);
+      if (!R) return null;
+      const box = document.querySelector("#trka .dt .tr2").getBoundingClientRect();
+      const at = (s) => (document.querySelector("#trka .dt i." + s).getBoundingClientRect().left
+        + 6 - box.left - 6) / (box.width - 12);
+      return { claimed: at("cl"), won: at("re"), R };
+    })(),
   };
 });
 ok("the shipped holdout is one row per real bout, six fields wide",
    ho.width === 6 && ho.rows > 0, `${ho.rows}×${ho.width}`);
 ok("every fighter in the holdout is in the index", ho.unknown === 0, `${ho.unknown} unknown`);
-ok("the precedent headline is arithmetically consistent with the panel",
+ok("the precedent headline is arithmetically consistent with itself",
    ho.headN > 0 && ho.headHit <= ho.headN &&
    near((ho.headHit / ho.headN) * 100, ho.realised, 0.06),
    `${ho.headHit}/${ho.headN} vs ${ho.realised}%`);
 ok("the quoted band brackets this fight's confidence",
    ho.lo <= ho.conf && ho.hi >= ho.conf, `${ho.lo}–${ho.hi} vs ${ho.conf}`);
+ok("the calibration curve plots every band and drops none",
+   ho.dots === ho.bands && ho.bands >= 6 && ho.binned === ho.rows,
+   `${ho.dots} dots / ${ho.bands} bands / ${ho.binned} of ${ho.rows} binned`);
+// The chart is the argument for the refusal: accuracy has to rise with claimed
+// confidence, or the threshold is sorting on nothing.
+ok("realised accuracy climbs with what the model claimed", ho.climbs);
+// A responsive viewBox scales the type with the geometry — the axis labels
+// rendered at 4px on a 390px phone before this was drawn at real pixel size.
+ok("the curve is drawn at real pixel size, not through a scaled viewBox", !ho.scaled);
+ok("the record marks sit where their numbers say",
+   ho.mark && near(ho.mark.claimed, ho.mark.R.meanP, 0.02) &&
+   near(ho.mark.won, ho.mark.R.won / ho.mark.R.n, 0.02),
+   ho.mark && `claimed ${ho.mark.claimed.toFixed(3)} vs ${ho.mark.R.meanP.toFixed(3)} · ` +
+              `won ${ho.mark.won.toFixed(3)} vs ${(ho.mark.R.won / ho.mark.R.n).toFixed(3)}`);
+// The tail's overlap gauge is a bounded quantity drawn against its own ceiling.
+const ent = await page.evaluate(() => ({
+  bar: parseFloat(document.querySelector("#dent .er u i").style.width),
+  txt: +(document.querySelector("#dent .er b").textContent.match(/([\d.]+) \/ 1\.000/) || [])[1],
+}));
+ok("the overlap gauge fills to the entropy it prints", near(ent.bar, ent.txt * 100, 0.2),
+   `${ent.bar}% vs ${ent.txt}`);
 ok("deep in the refusal band its own record is a coin flip",
    near(ho.deep, 0.5, 0.04), `realised ${ho.deep.toFixed(3)} at conf 0.52`);
 ok("the record panel prints the count the table actually holds",
