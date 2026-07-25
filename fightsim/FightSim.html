@@ -2723,7 +2723,7 @@ function drawCard(){
   x.font='600 14px Barlow'; x.fillStyle=GREY;
   x.fillText('UFCSTATS VIA THE GRECO1899 MIRROR · NOT AFFILIATED WITH UFC, ZUFFA OR TKO',M,H-46);
   x.textAlign='right';
-  x.fillText(`ROLLING-ORIGIN CV · BRIER 0.230 · ECE 1.1 PTS · N=3,404 FIGHTS`,W-M,H-70);
+  x.fillText(`ROLLING-ORIGIN CV · BRIER ${MET.BRIER} · ECE ${MET.ECE} PTS · N=${MET.N} FIGHTS`,W-M,H-70);
   x.fillText('NOT A PREDICTION. A DISTRIBUTION.',W-M,H-46);
   x.textAlign='left';
 
@@ -2930,14 +2930,14 @@ function drawEvent(){
   x.font='600 20px Barlow'; x.fillStyle=GREY;
   x.fillText('REFUSED — THE MODEL HAS NO EDGE ON THESE',M+bw2+20,fy+62);
   x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
-  x.fillText('WITHIN THE 3,404-FIGHT HOLDOUT, THE 40.4% BELOW 0.58 REALISED 52.0%. THAT IS WHY IT DECLINES.',M,fy+92);
+  x.fillText(`WITHIN THE ${MET.N}-FIGHT HOLDOUT, THE ${MET.REFUSE}% BELOW ${MET.THR} REALISED ${MET.REFUSE_ACC}%. THAT IS WHY IT DECLINES.`,M,fy+92);
 
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();
   mark(22,H-70,HOME.toUpperCase());
   x.font='600 14px Barlow'; x.fillStyle=GREY;
   x.fillText('UFCSTATS VIA THE GRECO1899 MIRROR · NOT AFFILIATED WITH UFC, ZUFFA OR TKO',M,H-46);
   x.textAlign='right';
-  x.fillText('ROLLING-ORIGIN CV · BRIER 0.230 · 67.2% ON THE 59.6% IT CALLS',W-M,H-70);
+  x.fillText(`ROLLING-ORIGIN CV · BRIER ${MET.BRIER} · ${MET.CALL_ACC}% ON THE ${MET.CALL}% IT CALLS`,W-M,H-70);
   x.fillText('NOT A PREDICTION. A DISTRIBUTION.',W-M,H-46);
   x.textAlign='left';
 
@@ -2959,9 +2959,12 @@ function receipt(){
   return JSON.stringify({
     event:EV.name,
     stamped:new Date().toISOString(),
+    // Credentials come from MET — the object npm test diffs against
+    // tools/metrics.txt — never from literals. A retrain that shifts the
+    // numbers must not ship receipts stamped with the old ones.
     model:{features:M.cols.length,intercept:M.intercept,
-           validation:'rolling-origin 2018-2026',brier:0.230,
-           held_out_fights:3404,decline_below:0.58},
+           validation:'rolling-origin 2018-2026',brier:+MET.BRIER,
+           held_out_fights:+MET.N.replace(/,/g,''),decline_below:MET.THR},
     bouts:EV.rows.map(r=>({a:r.a,b:r.b,p_a:+r.p.toFixed(4),
       confidence:+r.conf.toFixed(4),lean:r.declined?null:r.lean,
       refused:r.declined,rollouts:{a:r.aw,b:r.bw},

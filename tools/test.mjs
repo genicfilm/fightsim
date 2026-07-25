@@ -532,7 +532,12 @@ ok("a locator ships on the artifact", /const HOME=['"][^'"]+['"]/.test(src));
 // it is invisible to every other assertion here.
 const PUBLISHED = ["61.2%", "76.8%", "15.6%", "67.2%", "59.6%", "52.0%", "40.4%",
                    "0.230", "3,404", "6,457"];
-const missingClaims = PUBLISHED.filter((n) => !shown.includes(n));
+// A figure counts as published if it is a source literal, or if MET carries it —
+// MET is rendered unconditionally by boot() and diffed against metrics.txt
+// below, so an interpolated ${MET.X}% is on screen without being greppable here.
+const metVals = await page.evaluate(() => Object.values(MET).map(String));
+const missingClaims = PUBLISHED.filter((n) =>
+  !shown.includes(n) && !metVals.some((v) => n === v || n === `${v}%`));
 ok("every published figure is still on screen", missingClaims.length === 0, missingClaims.join(", "));
 // Retired figures. Each was wrong, and each shipped on three surfaces at once.
 const RETIRED = [
@@ -608,6 +613,15 @@ ok("the receipt is committable and ungraded", ev.rcpt.bouts.length === 3
   && ev.rcpt.bouts.every((b) => b.winner === null) && !!ev.rcpt.stamped);
 ok("the receipt records refusals explicitly",
   ev.rcpt.bouts.every((b) => typeof b.refused === "boolean"));
+// The receipt once carried its own literal Brier and N, so a retrain could
+// have shipped receipts stamped with stale credentials. It must read MET —
+// the object this suite diffs against tools/metrics.txt.
+const metOnPage = await page.evaluate(() => MET);
+ok("the receipt's credentials are MET, not literals",
+   ev.rcpt.model.brier === +metOnPage.BRIER
+   && ev.rcpt.model.held_out_fights === +metOnPage.N.replace(/,/g, "")
+   && ev.rcpt.model.decline_below === metOnPage.THR,
+   JSON.stringify(ev.rcpt.model));
 ok("the scorecard renders at the bout count",
    await page.evaluate(() => { const c = drawEvent(); return c.width === 2160 && c.height > 1000; }));
 await page.fill("#ecard", "constructor vs toString");

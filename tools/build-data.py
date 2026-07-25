@@ -59,6 +59,15 @@ def main():
                          d['ufc_fighter_tott'], d['ufc_event_details'])
 
     ev['DATE'] = pd.to_datetime(ev['DATE'], format='mixed', errors='coerce')
+
+    # The cache is only fetched when a file is missing, so a rebuild happily
+    # reuses months-old CSVs and reports success. Say so out loud instead.
+    newest = ev['DATE'].max()
+    age = (pd.Timestamp.now() - newest).days
+    print(f"  newest event in the data: {newest:%Y-%m-%d} ({age} days ago)")
+    if age > 10:
+        print(f"  ** STALE — the UFC runs most weekends. Delete .cache-ufc/ to"
+              f" re-fetch, and check the mirror itself is current: {BASE}")
     for f in (res, ev):
         f['EVENT'] = f['EVENT'].str.strip()
     res['BOUT'] = res['BOUT'].str.strip()
