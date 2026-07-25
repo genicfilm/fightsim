@@ -2,7 +2,7 @@
 // self-contained MMAReceipts.html that opens by double-clicking — no server, no
 // localhost, no WSL port forwarding. Fonts are inlined too, because Chrome
 // blocks @font-face over file:// even when the .ttf sits right next to the page.
-import { readFileSync, writeFileSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, statSync, readdirSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,6 +85,36 @@ if (!html.includes('id="fjdata"') || !html.includes('id="fjalias"')) {
   console.error("Injection point not found — did index.html's <script> tag change?");
   process.exit(1);
 }
+
+// 2b. The ledger line on the cold page, written from the receipts actually in
+//     ledger/. The artifact is offline and cannot read that directory at
+//     runtime, and a hand-typed record would be a claim nobody rebuilds — the
+//     exact failure this project already had with its Brier and its ECE. An
+//     empty ledger says so, because that is a true statement about a model
+//     that has not called anything yet.
+const ledgerDir = path.join(root, "ledger");
+const receipts = existsSync(ledgerDir)
+  ? readdirSync(ledgerDir).filter((f) => f.endsWith(".json"))
+      .map((f) => JSON.parse(readFileSync(path.join(ledgerDir, f), "utf8")))
+  : [];
+const bouts = receipts.flatMap((r) => (Array.isArray(r.bouts) ? r.bouts : []));
+const settled = bouts.filter((b) => b.winner && b.winner !== "NC");
+const called = settled.filter((b) => !b.refused);
+const hit = called.filter((b) => (b.p_a >= 0.5 ? b.a : b.b) === b.winner).length;
+const ledgerLine = !receipts.length
+  ? "THE LEDGER · <b>NOTHING CALLED YET</b> — THE FIRST RECEIPT GOES IN BEFORE THE NEXT CARD →"
+  : !called.length
+  ? `THE LEDGER · <b>${receipts.length} CARD${receipts.length > 1 ? "S" : ""} COMMITTED</b>, NONE GRADED YET →`
+  : `THE LEDGER · <b>${hit} OF ${called.length}</b> CALLED CORRECTLY ACROSS `
+    + `${receipts.length} CARD${receipts.length > 1 ? "S" : ""}, COMMITTED BEFORE EACH →`;
+const beforeLedger = html;
+html = html.replace('<a class="ldgr" id="ldgr" href="../ledger/">—</a>',
+  `<a class="ldgr" id="ldgr" href="../ledger/">${ledgerLine}</a>`);
+if (html === beforeLedger) {
+  console.error("Ledger line placeholder not found in index.html");
+  process.exit(1);
+}
+console.log(`ledger        ${receipts.length} receipt(s), ${called.length} called and graded`);
 
 writeFileSync(out, html);
 const kb = (statSync(out).size / 1024).toFixed(0);

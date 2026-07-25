@@ -8,7 +8,7 @@
 import { chromium } from "playwright-core";
 import { findChromium } from "./chromium-path.mjs";
 import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -87,6 +87,12 @@ await page.click("#ienter");
 ok("ENTER dismisses and focuses the first corner",
    !(await page.$eval("#intro", (e) => e.classList.contains("on"))) &&
    (await page.evaluate(() => document.activeElement.id)) === "ia");
+// Focusing the field must not scroll the pitch off the top. On a phone the
+// blue corner sits below the fold, so a plain focus() jumped straight past
+// everything the cold page exists to say.
+ok("entering the tool does not scroll the cold pitch away",
+   (await page.evaluate(() => window.scrollY)) === 0,
+   `scrollY ${await page.evaluate(() => window.scrollY)}`);
 await page.click("#method");
 ok("METHOD reopens it", await page.$eval("#intro", (e) => e.classList.contains("on")));
 await page.keyboard.press("Escape");
@@ -574,6 +580,44 @@ ok("every wordmark on screen is the one brand string",
 ok("the title and the published locator carry the brand too",
    brand.title.startsWith("MMA RECEIPTS") && brand.home === "genicfilm.github.io/mma-receipts",
    `${brand.title} · ${brand.home}`);
+// The cold page states the ledger's live record. It is written by the build
+// from ledger/*.json, because the artifact is offline and a hand-typed record
+// would be a claim nobody rebuilds — the exact failure the Brier and the ECE
+// already had here. This asserts the sentence on screen against the files.
+const ledgerDir = path.join(root, "ledger");
+const receiptFiles = existsSync(ledgerDir)
+  ? readdirSync(ledgerDir).filter((f) => f.endsWith(".json")) : [];
+const ledgerBouts = receiptFiles.flatMap((f) =>
+  (JSON.parse(readFileSync(path.join(ledgerDir, f), "utf8")).bouts || []));
+const ledgerSettled = ledgerBouts.filter((b) => b.winner && b.winner !== "NC" && !b.refused);
+const ledgerHit = ledgerSettled.filter((b) => (b.p_a >= 0.5 ? b.a : b.b) === b.winner).length;
+const ldgrText = await page.$eval("#ldgr", (e) => e.textContent.trim());
+ok("the cold page's ledger line matches the receipts on disk",
+   receiptFiles.length === 0
+     ? /NOTHING CALLED YET/.test(ldgrText)
+     : ledgerSettled.length === 0
+       ? /NONE GRADED YET/.test(ldgrText)
+       : ldgrText.includes(`${ledgerHit} OF ${ledgerSettled.length}`),
+   `${receiptFiles.length} receipt(s), ${ledgerHit}/${ledgerSettled.length} — "${ldgrText}"`);
+ok("the loop is stated in three steps on the cold page",
+   (await page.$$eval("#empanel .loop li b", (n) => n.map((e) => e.textContent)))
+     .join(",") === "READ,COMMIT,GRADE");
+// .thesis collapses via max-height, so that value has to clear the tallest the
+// block ever gets. At 560px it clipped 142px off the phone layout — where the
+// loop stacks to three rows — and took the refusal figures with it, invisibly.
+for (const [w, h] of [[1440, 900], [390, 844], [360, 780]]) {
+  const probe = await browser.newPage({ viewport: { width: w, height: h } });
+  await boot(probe);
+  await probe.click("#ienter");
+  await probe.waitForTimeout(150);
+  const clip = await probe.$eval(".thesis", (e) => ({
+    need: e.scrollHeight, cap: parseFloat(getComputedStyle(e).maxHeight),
+  }));
+  ok(`the cold pitch is not clipped at ${w}px`, clip.need <= clip.cap,
+     `needs ${clip.need}px, capped at ${clip.cap}px`);
+  await probe.close();
+}
+
 ok("no retired product name survives anywhere the reader can see",
    !/FIGHT SIM|FightSim\.html|FIGHT JURY|VARIANCE/.test(shown),
    (shown.match(/FIGHT SIM|FightSim\.html|FIGHT JURY|VARIANCE/) || [])[0]);

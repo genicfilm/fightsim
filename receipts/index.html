@@ -135,7 +135,12 @@ header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid
    lives inside #empanel too — so a `.hero` rule here collapsed the ELO row to a
    10px sliver. Ids are covered by the DOM contract; class names are not.
    Descendant selectors below for the same reason. */
-.thesis{overflow:hidden;max-height:560px;margin-bottom:var(--sp-5);
+/* max-height is the collapse target, so it has to clear the TALLEST the block
+   ever gets — and that is the narrow layout, where the loop stacks to three
+   rows. It was 560px, which fit the old copy on desktop and silently clipped
+   142px off the bottom of the phone layout, taking the refusal figures with it.
+   Sized per breakpoint rather than one number that is wrong somewhere. */
+.thesis{overflow:hidden;max-height:620px;margin-bottom:var(--sp-5);
   transition:max-height var(--dur-reveal) var(--ease-out),
              opacity var(--dur-reveal) var(--ease-out),
              margin-bottom var(--dur-reveal) var(--ease-out)}
@@ -158,6 +163,33 @@ header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid
   max-width:760px;margin-top:var(--sp-3);text-wrap:balance}
 /* The refusal strip. Three measured figures, with the no-edge share first
    because declining unsupported certainty is the product's central behavior. */
+/* READ -> COMMIT -> GRADE. Numbered by the list, not by hand, so the steps
+   cannot drift out of order. Every rule scoped under .loop. */
+.loop{list-style:none;margin:var(--sp-4) 0 0;padding:0;display:grid;
+  grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);counter-reset:step}
+.loop li{background:#0b0b0f;padding:13px 16px 14px;counter-increment:step}
+.loop li::before{content:"0" counter(step);display:block;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.18em;color:#4b4b55;margin-bottom:7px}
+.loop b{display:block;font-family:Anton;font-size:19px;letter-spacing:.03em;
+  color:var(--ink);font-weight:400}
+.loop li:nth-child(2) b{color:var(--blue)}
+.loop span{display:block;margin-top:5px;font-size:13px;line-height:1.45;color:#8a8a94}
+/* The live state of ledger/, written by the build. Reads as a receipt stub. */
+.ldgr{display:block;margin-top:10px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.13em;color:#8a8a94;text-decoration:none;
+  border:1px solid var(--line);border-left:2px solid var(--red);padding:10px 14px}
+.ldgr:hover{color:var(--ink);border-left-color:var(--ink)}
+.ldgr b{color:var(--ink);font-weight:400}
+/* Narrow: stay three across and drop the descriptions. Stacked, the three
+   steps cost ~300px and pushed the corners most of a screen down; the verbs
+   alone still read as a loop, and the paragraph above already explains them. */
+@media(max-width:700px){
+  .loop li{padding:10px 8px 11px;text-align:center}
+  .loop li::before{margin-bottom:5px}
+  .loop b{font-size:15px}
+  .loop span{display:none}
+}
 .refuse{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
   border:1px solid var(--line);margin-top:var(--sp-4)}
 .refuse div{background:#0b0b0f;padding:14px 16px 13px}
@@ -1016,7 +1048,7 @@ input::placeholder{color:#3a3a44}
 
   <header>
     <div class="mark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">MMA RECEIPTS</span></div>
-    <div class="tag">A line-blind read of any UFC matchup</div>
+    <div class="tag">Line-blind readings, committed before the card</div>
     <div class="spacer"></div>
     <button class="method" id="event">EVENT</button>
     <button class="method" id="method">METHOD</button>
@@ -1031,9 +1063,21 @@ input::placeholder{color:#3a3a44}
         <div class="kick">NOT A PREDICTION. A DISTRIBUTION.</div>
         <button class="cardlink" id="eventhero">READ THE WHOLE CARD →</button>
       </div>
-      <h1>SEE WHAT THE RECORD SEPARATES.<br><span>AND WHAT IT DOESN'T.</span></h1>
-      <p class="dek">Choose two fighters. MMA RECEIPTS compares their career records across 1,000
-        line-blind rollouts, then shows meaningful separation or no edge.</p>
+      <h1>COMMIT THE READ BEFORE THE CARD.<br><span>GRADE IT AGAINST WHAT HAPPENED.</span></h1>
+      <p class="dek">Choose two fighters, or paste a whole card. It runs 1,000 line-blind
+        rollouts, <b>refuses the fights it has no edge on</b>, and exports a timestamped
+        receipt you can publish before the bell — then grade after it.</p>
+      <!-- The loop, named. Three steps because the middle one is the part no
+           competitor has: a reading is only a receipt once it is public and
+           dated BEFORE the result exists. -->
+      <ol class="loop">
+        <li><b>READ</b><span>1,000 rollouts per bout. No betting line, ever.</span></li>
+        <li><b>COMMIT</b><span>Export the receipt and publish it before the card.</span></li>
+        <li><b>GRADE</b><span>Paste it back afterwards. The record is what it is.</span></li>
+      </ol>
+      <!-- Written by the build from the receipts actually in ledger/, so this
+           line cannot claim a record the repository does not hold. -->
+      <a class="ldgr" id="ldgr" href="../ledger/">—</a>
       <!-- The differentiator, on the cold page. Populated from MET so the only
            place these figures exist is the block tools/build-data.py prints. -->
       <div class="refuse" id="refuse"></div>
@@ -3188,7 +3232,10 @@ if(seen()) $('intro').classList.remove('on');
 $('ienter').onclick=()=>{
   $('intro').classList.remove('on');
   try{ localStorage.setItem(MKEY,'1'); }catch(e){}
-  $('ia').focus();
+  // preventScroll, or the browser scrolls the focused field into view and the
+  // whole cold pitch is skipped past on a phone — where the field sits below
+  // the fold. The caret still lands in the blue corner; the page does not move.
+  $('ia').focus({preventScroll:true});
 };
 $('method').onclick=()=>{ $('intro').classList.add('on'); $('ienter').focus(); };
 addEventListener('keydown',e=>{
