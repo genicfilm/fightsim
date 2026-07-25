@@ -135,7 +135,7 @@ header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid
    lives inside #empanel too — so a `.hero` rule here collapsed the ELO row to a
    10px sliver. Ids are covered by the DOM contract; class names are not.
    Descendant selectors below for the same reason. */
-.thesis{overflow:hidden;max-height:300px;margin-bottom:var(--sp-5);
+.thesis{overflow:hidden;max-height:440px;margin-bottom:var(--sp-5);
   transition:max-height var(--dur-reveal) var(--ease-out),
              opacity var(--dur-reveal) var(--ease-out),
              margin-bottom var(--dur-reveal) var(--ease-out)}
@@ -148,6 +148,28 @@ header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid
    everywhere else on this page, and a blue→red wash across a phrase that is not
    a corner spends the one distinction the palette exists to protect. */
 .thesis h1 span{color:#7a7a84}
+/* The refusal strip. Three measured figures, and the first one is red because
+   it is the only number on this page that no competing tool can print. */
+.refuse{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);margin-top:var(--sp-4)}
+.refuse div{background:#0b0b0f;padding:14px 16px 13px}
+.refuse b{display:block;font-family:Anton;font-size:27px;line-height:1;color:var(--ink)}
+.refuse div:first-child b{color:var(--red)}
+.refuse div:last-child b{color:var(--blue)}
+.refuse span{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  color:var(--grey);margin-top:7px;line-height:1.55}
+/* Mobile keeps three columns and drops to a one-word label. Stacked, the strip
+   ran 240px and pushed the RED CORNER input and the button below the fold on a
+   390x844 screen — which is the device fight-night traffic actually arrives on,
+   so the cost of that is the primary action, not some spacing. */
+.refuse em{display:none}
+@media(max-width:620px){
+  .refuse div{padding:10px 8px 9px}
+  .refuse b{font-size:19px}
+  .refuse span{display:none}
+  .refuse em{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.08em;color:var(--grey);margin-top:6px;line-height:1.4}
+}
 
 /* empanel.
    Cold, the whole composition sat jammed under the masthead with the bottom
@@ -707,7 +729,10 @@ input::placeholder{color:#3a3a44}
   <section id="empanel">
     <div class="thesis">
       <div class="kick">NOT A PREDICTION. A DISTRIBUTION.</div>
-      <h1><span>Nobody can predict a fight.</span><br>This measures how much nobody can.</h1>
+      <h1><span>Nobody can predict a fight.</span><br>This one refuses two in five.</h1>
+      <!-- The differentiator, on the cold page. Populated from MET so the only
+           place these figures exist is the block tools/build-data.py prints. -->
+      <div class="refuse" id="refuse"></div>
     </div>
     <div class="panel">
       <div class="corner a">
@@ -810,8 +835,24 @@ let M=null,FI=null,NAMES=[];
 const $=id=>document.getElementById(id);
 const N_JURORS=1000;
 
+/* Every validation figure the interface prints. These are measured, not
+   derivable in the browser — they come from the rolling-origin CV in
+   tools/build-data.py, which writes them to tools/metrics.txt. `npm test`
+   parses that file and fails if any of these has drifted from it, so the
+   screen and the pipeline cannot disagree the way they did for months. */
+const MET={ THR:0.58, REFUSE:40, REFUSE_ACC:'52.0', CALL:60, CALL_ACC:'67.2',
+            FORCED:'61.2', SURE:15.6, SURE_ACC:'76.8', BRIER:'0.230',
+            ECE:'1.1', WORST:'2.5', N:'3,404' };
+
 function boot(d){
   M=d.model; FI=d.fighters; NAMES=Object.keys(FI).sort();
+  $('refuse').innerHTML=
+     `<div><b>${MET.REFUSE}%</b><em>REFUSED</em>`
+      +`<span>OF FIGHTS REFUSED<br>UNDER A ${MET.THR} POSTERIOR</span></div>`
+    +`<div><b>${MET.REFUSE_ACC}%</b><em>ON THOSE</em>`
+      +`<span>REALISED ON THOSE<br>A COIN FLIP, MEASURED</span></div>`
+    +`<div><b>${MET.CALL_ACC}%</b><em>WHEN IT CALLS</em>`
+      +`<span>REALISED ON THE ${MET.CALL}%<br>IT WILL ACTUALLY CALL</span></div>`;
   $('nf').textContent=NAMES.length.toLocaleString();
   /* The masthead used to state 32, hardcoded — M.feats.length, the named
      stat and bio columns. That silently excluded elo and listed weight, so the
@@ -2133,11 +2174,15 @@ $('ejson').onclick=async()=>{
 };
 
 /* ---------- the method screen ---------- */
-const seen=()=>{ try{ return localStorage.getItem('fightsim.method')==='1'; }catch(e){ return false; } };
+// Versioned. The unversioned key meant the method screen was shown once per
+// browser, ever — so rewriting it changed nothing for anyone who had already
+// opened the file. Bump the suffix whenever this screen's claims change.
+const MKEY='fightsim.method.v2';
+const seen=()=>{ try{ return localStorage.getItem(MKEY)==='1'; }catch(e){ return false; } };
 if(seen()) $('intro').classList.remove('on');
 $('ienter').onclick=()=>{
   $('intro').classList.remove('on');
-  try{ localStorage.setItem('fightsim.method','1'); }catch(e){}
+  try{ localStorage.setItem(MKEY,'1'); }catch(e){}
   $('ia').focus();
 };
 $('method').onclick=()=>{ $('intro').classList.add('on'); $('ienter').focus(); };

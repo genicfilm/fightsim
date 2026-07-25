@@ -37,7 +37,7 @@ const CONTRACT = [
   "ca", "cb", "split", "status", "ret", "stream",
   "verdict", "stamp", "vmaj", "vmajs", "vmeth", "vmeths", "vconf", "vconfs",
   "attr", "attrsub", "attrows", "attrl", "attrr",
-  "dissent", "dhead", "dtext", "dquote", "save", "copy", "again", "saved",
+  "dissent", "dhead", "dtext", "dquote", "save", "copy", "again", "saved", "refuse",
   "event", "evpanel", "ename", "ecard", "ewarn", "erun", "eout", "esave", "ejson", "eclose", "esaved",
 ];
 
@@ -280,6 +280,34 @@ const RETIRED = [
 const revived = RETIRED.filter(([n]) => shown.includes(n));
 ok("no retired figure or claim has come back",
   revived.length === 0, revived.map(([n, why]) => `${n} (${why})`).join(" | "));
+
+// MET is the single source for every validation figure the UI prints. It is not
+// derivable in the browser — it comes from the rolling-origin CV — so the only
+// guarantee that the screen still agrees with the pipeline is this comparison
+// against the file build-data.py writes. Without it, MET is just more literals.
+const metricsFile = path.join(root, "tools", "metrics.txt");
+if (!existsSync(metricsFile)) {
+  ok("tools/metrics.txt exists — run build-data.py", false);
+} else {
+  const txt = readFileSync(metricsFile, "utf8");
+  const thr = txt.match(/below 0\.58\s+([\d.]+)% of fights, realised ([\d.]+)\s+at\/above\s+([\d.]+)%, realised ([\d.]+)/);
+  const hdr = txt.match(/accuracy ([\d.]+)%\s+Brier ([\d.]+)\s+ECE ([\d.]+) pts\s+worst band ([\d.]+) pts\s+N (\d+)/);
+  const MET = await page.evaluate(() => MET);
+  const expected = !thr || !hdr ? null : {
+    REFUSE: Math.round(+thr[1]), REFUSE_ACC: (+thr[2] * 100).toFixed(1),
+    CALL: Math.round(+thr[3]), CALL_ACC: (+thr[4] * 100).toFixed(1),
+    FORCED: hdr[1], BRIER: hdr[2], ECE: hdr[3], WORST: hdr[4],
+    N: (+hdr[5]).toLocaleString("en-US"),
+  };
+  ok("metrics.txt is parseable", expected !== null);
+  if (expected) {
+    const drift = Object.entries(expected)
+      .filter(([k, v]) => String(MET[k]) !== String(v))
+      .map(([k, v]) => `${k}: screen ${MET[k]} vs pipeline ${v}`);
+    ok("every figure on screen matches what the pipeline computed",
+      drift.length === 0, drift.join(" | "));
+  }
+}
 ok("the retired competitor claim has not come back",
   !/models? advertising \d+%|random-split their data/i.test(shown));
 
