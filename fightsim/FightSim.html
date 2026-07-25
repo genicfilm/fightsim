@@ -558,6 +558,13 @@ input::placeholder{color:#3a3a44}
   border:1px solid var(--line);color:#8e8e98;background:transparent;border-radius:2px}
 .stamp.conv{color:var(--ink);border-color:#3a3a45}
 .stamp.hung{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+/* The refused state. A tool that declines has to look like it meant to: the
+   block takes a hairline rule in ink and the no-call cell is neutral, because
+   colouring it blue or red would name a corner on the one result that exists
+   specifically to name nobody. */
+.verdict.refused .grid{outline:1px solid #2e2e37;outline-offset:0}
+.verdict.refused .cell:first-child{background:#131318}
+.cell u.no{color:var(--ink);letter-spacing:.01em}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
   border:1px solid var(--line);margin-bottom:22px}
 .cell{background:#0d0d11;padding:17px 15px}
@@ -1678,25 +1685,47 @@ function render(A,B,D){
   // posterior cell. 0.70 is the band the model is measurably 76.8% accurate in.
   const conf=Math.max(p,1-p);
   const hung=conf<0.58, confident=conf>=0.70;
-  $('stamp').textContent=hung?'INDETERMINATE':(confident?'CONVERGED':'LOW SEPARATION');
+  /* A refusal used to end on a grey INDETERMINATE stamp above a cell naming a
+     winner — which reads as the tool shrugging, and quietly contradicts itself
+     by printing a favourite on the fights it says it will not call. Below the
+     threshold the result now states the refusal, declines to name anyone, and
+     shows the receipt that earns it. Same threshold, same arithmetic, honest
+     presentation. */
+  $('stamp').textContent=hung?'REFUSED · NO EDGE':(confident?'CONVERGED':'LOW SEPARATION');
   $('stamp').className='stamp'+(hung?' hung':(confident?' conv':''));
+  $('verdict').classList.toggle('refused',hung);
 
-  $('vmaj').textContent=maj; $('vmaj').className=(maj===B?'r':'l');
-  $('vmajs').textContent=`${majN.toLocaleString()} OF ${N_JURORS.toLocaleString()} ROLLOUTS`;
+  const majLbl=$('vmaj').closest('.cell').querySelector('b');
+  if(hung){
+    majLbl.textContent='No call';
+    $('vmaj').textContent='REFUSED'; $('vmaj').className='no';
+    $('vmajs').textContent=`${majN.toLocaleString()}–${minN.toLocaleString()} · TOO CLOSE TO SEPARATE`;
+  } else {
+    majLbl.textContent='Modal outcome';
+    $('vmaj').textContent=maj; $('vmaj').className=(maj===B?'r':'l');
+    $('vmajs').textContent=`${majN.toLocaleString()} OF ${N_JURORS.toLocaleString()} ROLLOUTS`;
+  }
 
   const cnt={};
   jurors.filter(j=>j.win===maj).forEach(j=>cnt[j.method]=(cnt[j.method]||0)+1);
   const top=Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0]||['—',0];
-  $('vmeth').textContent=top[0]==='DEC'?'DECISION':top[0];
   // Declared heuristic, not a fitted model — said on the cell itself, because
   // this sits at the same visual weight as the validated posterior beside it.
-  $('vmeths').textContent=`${Math.round(top[1]/majN*100)}% OF OUTCOMES · DECLARED HEURISTIC, NOT FITTED`;
+  // And a refusal refuses everything: reporting "DECISION 58%" on a fight the
+  // stamp above it declines to call is the same contradiction as naming a
+  // favourite there. If there is no call, there is no method either.
+  $('vmeth').textContent=hung?'—':(top[0]==='DEC'?'DECISION':top[0]);
+  $('vmeths').textContent=hung
+    ? 'NO CALL MADE · NO METHOD CLAIMED'
+    : `${Math.round(top[1]/majN*100)}% OF OUTCOMES · DECLARED HEURISTIC, NOT FITTED`;
 
   $('vconf').textContent=conf.toFixed(3);
   $('vconf').className=confident?'r':'';
-  $('vconfs').textContent=confident?'UNPERTURBED · BAND ≥0.70 REALISED 76.8% ON 15.6% OF FIGHTS'
-    :(hung?'UNPERTURBED · DECLINED BAND — REALISED 52.0% ON 40% OF FIGHTS'
-          :'UNPERTURBED · BAND 0.58–0.70 · WEAK SEPARATION');
+  $('vconfs').textContent=confident
+    ?`UNPERTURBED · BAND ≥0.70 REALISED ${MET.SURE_ACC}% ON ${MET.SURE}% OF FIGHTS`
+    :(hung
+      ?`UNPERTURBED · UNDER ${MET.THR} IT REALISED ${MET.REFUSE_ACC}% ACROSS ${MET.N} FIGHTS`
+      :'UNPERTURBED · BAND 0.58–0.70 · WEAK SEPARATION');
 
   renderAttr(A,B,D);
 
@@ -1852,7 +1881,7 @@ function drawCard(){
   }
 
   // stamp
-  const label=hung?'INDETERMINATE':(confident?'CONVERGED':'LOW SEPARATION');
+  const label=hung?'REFUSED · NO EDGE':(confident?'CONVERGED':'LOW SEPARATION');
   x.save(); x.translate(M,516); x.rotate(-0.028);
   x.font='24px Anton'; const lw=x.measureText(label).width;
   x.strokeStyle=R; x.lineWidth=3;
@@ -1862,9 +1891,12 @@ function drawCard(){
 
   // how it ends — real information, and it fills the frame
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,592); x.lineTo(W-M,592); x.stroke();
-  x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText('T E R M I N A T I O N',M,632);
+  x.font='600 15px Barlow'; x.fillStyle=GREY;
+  x.fillText(hung?'T E R M I N A T I O N   —   N O T   C L A I M E D':'T E R M I N A T I O N',M,632);
   x.font='600 14px Barlow'; x.fillStyle='#5a5a64';
-  x.fillText('DECLARED HEURISTIC — NOT A FITTED METHOD MODEL · SCHEDULED 3 ROUNDS',M+230,632);
+  x.fillText(hung?'THE MODEL REFUSED THIS FIGHT. THE SHAPE BELOW IS THE ROLLOUTS, NOT A CALL.'
+                 :'DECLARED HEURISTIC — NOT A FITTED METHOD MODEL · SCHEDULED 3 ROUNDS',
+             hung?M+330:M+230,632);
   const order=[['DECISION',LAST.methods.DEC||0],['KO / TKO',LAST.methods['KO/TKO']||0],
                ['SUBMISSION',LAST.methods.SUB||0]].sort((p,q)=>q[1]-p[1]);
   order.forEach(([name,n],i)=>{
@@ -1900,11 +1932,14 @@ function drawCard(){
   // the thesis
   const ty=qy+134;
   x.font='600 27px Barlow'; x.fillStyle='#b8b8be';
-  x.fillText(hung?'No separation exists in this matchup.'
+  x.fillText(hung?'This model refuses this fight.'
     :(confident?'Maximum separation the model produces.':'A lean. Not a call.'),M,ty);
   x.fillStyle=GREY;
-  x.fillText(`Unperturbed posterior ${conf.toFixed(3)} · ${majN}–${minN} under the declared `
-    +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+34);
+  x.fillText(hung
+    ? `Under ${MET.THR} it realised ${MET.REFUSE_ACC}% across ${MET.N} held-out fights. `
+      +`That is why it declines.`
+    : `Unperturbed posterior ${conf.toFixed(3)} · ${majN}–${minN} under the declared `
+      +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+34);
 
   // footer
   x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();

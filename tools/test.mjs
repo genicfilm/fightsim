@@ -140,7 +140,7 @@ ok("progress rail completes", inv.rail === "100%");
 ok("the animation loop stops when it is done", inv.rafStopped);
 ok("posterior cell agrees with the model", near(inv.conf, Math.max(inv.p, 1 - inv.p), 0.0011));
 ok("stamp matches its band",
-   inv.conf < 0.58 ? inv.stamp === "INDETERMINATE"
+   inv.conf < 0.58 ? inv.stamp === "REFUSED · NO EDGE"
    : inv.conf >= 0.70 ? inv.stamp === "CONVERGED" : inv.stamp === "LOW SEPARATION", inv.stamp);
 ok("attribution lists terms and prints Σ", inv.attrRows > 0 && /Σ INCL\. INTERCEPT/.test(inv.attrsub));
 
