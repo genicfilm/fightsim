@@ -1,0 +1,15 @@
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# Downloaded UFC CSVs — re-fetched by tools/build-data.py on demand
+.cache-ufc/
+
+# Visual-regression output. tools/baseline/ IS committed; this is what a failing
+# run drops next to it (the actual shot + a red-marked diff).
+tools/.shots-out/
+
+# Stray exports and scratch images — never part of the product
+ChatGPT Image*.png
+*.tmp.png

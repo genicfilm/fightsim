@@ -1,0 +1,2165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIGHT SIM — 1,000 rollouts per matchup</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0c'/><path fill='none' stroke='%23f2f2f0' stroke-width='7' d='M31 6H69L94 31V69L69 94H31L6 69V31Z'/><path fill='%23f2f2f0' d='M36 24H49V70H41V56L30 49V40Z'/><rect x='49' y='18' width='2.5' height='64' fill='%23f2f2f0'/><rect x='56' y='34' width='14' height='5' fill='%23f2f2f0'/><rect x='56' y='47' width='22' height='5' fill='%23f2f2f0'/><rect x='56' y='60' width='11' height='5' fill='%23f2f2f0'/></svg>">
+<style>
+@font-face{font-family:Anton;src:url(fonts/Anton-Regular.ttf) format('truetype');font-display:swap}
+@font-face{font-family:Barlow;src:url(fonts/BarlowCondensed-Bold.ttf) format('truetype');font-weight:700;font-display:swap}
+@font-face{font-family:Barlow;src:url(fonts/BarlowCondensed-SemiBold.ttf) format('truetype');font-weight:600;font-display:swap}
+@font-face{font-family:Barlow;src:url(fonts/BarlowCondensed-Medium.ttf) format('truetype');font-weight:500;font-display:swap}
+
+/* Two corners, two hues. White-vs-red failed every categorical check that
+   matters — white has no chroma, so it reads as grey and the two fighters do
+   not oppose. #2b7fff vs #e01a22 sits inside one lightness band (neither
+   corner outweighs the other), separates at ΔE 32.6 under deuteranopia, and
+   happens to be the colours the sport already paints on the cage. */
+:root{
+  --bg:#0a0a0c; --ink:#f2f2f0; --grey:#75757e; --line:#1e1e24;
+  --blue:#2b7fff; --blue-hot:#a8ccff;
+  --red:#e01a22;  --red-hot:#ff7a7e;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  /* Surfaces. Twelve hand-picked near-blacks sat within a few values of each
+     other with no rule for choosing between them. Five roles instead, so a new
+     panel has an obvious home rather than a new hex. --bg is level 1. */
+  --surf-0:#08080b;   /* recessed — the sim well, the method backdrop */
+  --surf-2:#0e0e12;   /* raised — panels, cells, dropdowns */
+  --surf-3:#101016;   /* well — inputs, track backgrounds */
+  --surf-4:#141418;   /* inset — quote blocks */
+  --line-2:#17171d;   /* recessed hairline — rails, gap tracks */
+
+  /* Type. Nine steps replacing ~30 ad-hoc sizes; every step has a job. */
+  --fs-micro:8.5px;   /* axis labels, chart captions */
+  --fs-meta:10px;     /* mono metadata, stream ids */
+  --fs-label:11.5px;  /* section and corner labels */
+  --fs-body:15.5px;   /* prose */
+  --fs-value:18px;    /* tape row values */
+  --fs-lead:21px;     /* input text, tail prose */
+  --fs-plate:33px;    /* fighter name plates */
+  --fs-hero:48px;     /* tally, stamp */
+  --fs-display:62px;  /* wordmark */
+
+  /* Space. 4px base, seven steps. */
+  --sp-1:4px;  --sp-2:8px;  --sp-3:14px; --sp-4:22px;
+  --sp-5:34px; --sp-6:56px; --sp-7:88px;
+
+  /* Motion, named for what it MEANS rather than what it animates, so the next
+     animation has a duration to reach for instead of inventing a fifth one. */
+  --dur-tick:120ms;    /* acknowledge — hovers, state flips */
+  --dur-reveal:260ms;  /* disclose — something appears */
+  --dur-impact:460ms;  /* land — something arrives with consequence */
+  --dur-settle:900ms;  /* resolve — the run coming to rest */
+  --ease-out:cubic-bezier(.2,.8,.3,1);
+  --ease-impact:cubic-bezier(.16,1.1,.3,1);
+
+  /* the one line that makes the browser's own chrome — scrollbars, and the
+     native <select> popup we cannot style — match the page instead of shipping
+     a white rectangle into the middle of it */
+  color-scheme:dark;
+}
+/* Collapsing the tokens themselves means a future animation cannot forget to
+   opt in — it inherits stillness whether or not anyone remembered it. */
+@media(prefers-reduced-motion:reduce){
+  :root{--dur-tick:1ms;--dur-reveal:1ms;--dur-impact:1ms;--dur-settle:1ms}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:Barlow,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;min-height:100%}
+body{padding:var(--sp-5) var(--sp-4) var(--sp-7);position:relative;overflow-x:hidden}
+/* the two corners are lit before anything is typed — the page is a cage, not
+   a form. Near-black rather than pure black, so the glow has somewhere to sit.
+   The third gradient is the card's vignette: without it the content dissolves
+   into an unbounded void instead of sitting inside something. */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 50% at 8% -8%,rgba(43,127,255,.13),transparent 62%),
+             radial-gradient(ellipse 70% 50% at 92% -8%,rgba(224,26,34,.13),transparent 62%),
+             radial-gradient(ellipse 118% 74% at 50% 42%,transparent 52%,rgba(0,0,0,.62))}
+/* THE CAGE. The exported card has a frame; the page had none, so a 940px column
+   floated in the middle of a 1440px screen with nothing holding it. Hairline
+   border, ticked at the corners — blue top-left, red top-right, because those
+   are the corners and the sport already paints them that way.
+   z-index 95 puts it over the method screen too: it is chrome, it is never
+   interactive, and one frame serves every screen. */
+body::after{
+  content:"";position:fixed;inset:9px;pointer-events:none;z-index:95;
+  border:1px solid #14141a;
+  background:
+    linear-gradient(rgba(43,127,255,.6),rgba(43,127,255,.6))    0    0/1px 30px no-repeat,
+    linear-gradient(rgba(43,127,255,.6),rgba(43,127,255,.6))    0    0/30px 1px no-repeat,
+    linear-gradient(rgba(224,26,34,.6),rgba(224,26,34,.6))   100%    0/1px 30px no-repeat,
+    linear-gradient(rgba(224,26,34,.6),rgba(224,26,34,.6))   100%    0/30px 1px no-repeat,
+    linear-gradient(#2a2a33,#2a2a33)                            0 100%/1px 30px no-repeat,
+    linear-gradient(#2a2a33,#2a2a33)                            0 100%/30px 1px no-repeat,
+    linear-gradient(#2a2a33,#2a2a33)                         100% 100%/1px 30px no-repeat,
+    linear-gradient(#2a2a33,#2a2a33)                         100% 100%/30px 1px no-repeat}
+/* 940 used 65% of a 1440 screen and 49% of a 1920 one, and the tape rows inside
+   it used 46%. The measurements are the same; the composition now fills the
+   display it is being read on. */
+.wrap{max-width:1100px;margin:0 auto;position:relative;z-index:1}
+
+/* masthead */
+header{display:flex;align-items:baseline;gap:var(--sp-3);border-bottom:1px solid var(--line);
+  padding-bottom:var(--sp-3);margin-bottom:var(--sp-5);flex-wrap:wrap}
+/* Lockup: the cage glyph, then the wordmark. Monochrome, per the artwork —
+   which also settles a problem the blue/red wordmark had, since red means RED
+   CORNER everywhere else and a two-tone logo spent that distinction on itself.
+   The oblique is a skew rather than a real italic: Anton ships upright only,
+   and a 9° shear on a condensed grotesque is how athletic lettering is drawn
+   anyway. */
+.mark{display:flex;align-items:center;gap:11px}
+.glyph{width:36px;height:36px;flex:none;color:var(--ink);display:block}
+.wm{font-family:Anton;font-size:30px;letter-spacing:.02em;line-height:1;
+  color:var(--ink);transform:skewX(-9deg);transform-origin:0 100%;display:inline-block}
+.tag{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--grey);font-weight:600}
+.spacer{flex:1}
+/* flex-basis:100% pins the metadata to its own row. It used to reach that row
+   by happening to be the item that wrapped, so adding a second masthead button
+   (EVENT) put it back on the button row, where it collided with them and shoved
+   the entire page down 32px — eight screens red for one added element. The row
+   is now structural rather than incidental. */
+.cal{font-family:var(--mono);font-size:10.5px;color:var(--grey);letter-spacing:.04em;
+  text-align:right;flex-basis:100%}
+.cal b{color:var(--ink);font-weight:400}
+
+/* ---- the thesis -----------------------------------------------------------
+   This sentence used to live only on the method screen — which localStorage
+   dismisses permanently — so every return visit opened on a bare form with
+   nothing on it saying what the tool was for. It is the best line in the
+   project and it was being shown once.
+   It collapses the instant a corner is filled, so the tape still gets the room:
+   one statement, retired the moment it has been replaced by real work. */
+/* Named .thesis, not .hero: the tape's ELO row is already `.tr.hero`, and it
+   lives inside #empanel too — so a `.hero` rule here collapsed the ELO row to a
+   10px sliver. Ids are covered by the DOM contract; class names are not.
+   Descendant selectors below for the same reason. */
+.thesis{overflow:hidden;max-height:300px;margin-bottom:var(--sp-5);
+  transition:max-height var(--dur-reveal) var(--ease-out),
+             opacity var(--dur-reveal) var(--ease-out),
+             margin-bottom var(--dur-reveal) var(--ease-out)}
+#empanel.armed .thesis{max-height:0;opacity:0;margin-bottom:0}
+.thesis .kick{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.24em;
+  color:#55555f;margin-bottom:var(--sp-3)}
+.thesis h1{font-family:Barlow;font-weight:700;font-size:clamp(27px,4vw,46px);line-height:1.08;
+  letter-spacing:-.004em;color:var(--ink);max-width:min(100%,800px)}
+/* Emphasis by tone, not by hue. Blue and red mean BLUE CORNER and RED CORNER
+   everywhere else on this page, and a blue→red wash across a phrase that is not
+   a corner spends the one distinction the palette exists to protect. */
+.thesis h1 span{color:#7a7a84}
+
+/* empanel.
+   Cold, the whole composition sat jammed under the masthead with the bottom
+   half of the fold empty, which reads as content running out rather than as
+   space. Dropping it down the page balances the void above and below; the
+   padding animates away as the tape arrives, so nothing jumps. */
+#empanel{padding-top:var(--sp-6);transition:padding-top var(--dur-reveal) var(--ease-out)}
+#empanel.armed{padding-top:0}
+.panel{display:grid;grid-template-columns:1fr 54px 1fr;gap:var(--sp-3);align-items:start}
+.corner label{display:block;font-size:var(--fs-label);letter-spacing:.24em;text-transform:uppercase;
+  color:var(--grey);font-weight:700;margin-bottom:9px}
+.corner.a label{color:var(--blue)}
+.corner.b label{color:var(--red)}
+.corner.a input:focus{border-color:var(--blue)}
+.field{position:relative}
+input[type=text]{width:100%;background:var(--surf-3);border:1px solid var(--line);color:var(--ink);
+  font-family:Barlow;font-weight:600;font-size:var(--fs-lead);padding:15px 14px;letter-spacing:.01em;
+  border-radius:2px;outline:none;transition:border-color var(--dur-tick)}
+input[type=text]:focus{border-color:var(--red)}
+input::placeholder{color:#3a3a44}
+.ac{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surf-2);
+  border:1px solid var(--line);max-height:250px;overflow-y:auto;z-index:40;display:none}
+.ac.on{display:block}
+/* The highlight used to be a full-bleed slab of corner colour with white text —
+   the look of a browser default, and it drowned the ELO/peak-year detail line
+   that is the reason the row is worth reading. The corner still marks the row,
+   as a 2px bar on the leading edge; the surface only lifts. */
+.ac div{position:relative;padding:9px 13px 9px 16px;font-size:16px;font-weight:600;
+  cursor:pointer;border-bottom:1px solid #141419;color:#c8c8ce;
+  transition:background-color var(--dur-tick),color var(--dur-tick)}
+.ac div::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:transparent}
+.ac div:hover,.ac div.sel{background:#16161d;color:var(--ink)}
+.corner.a .ac div:hover::before,.corner.a .ac div.sel::before{background:var(--blue)}
+.corner.b .ac div:hover::before,.corner.b .ac div.sel::before{background:var(--red)}
+.ac small{display:block;font-family:var(--mono);font-size:9.5px;color:var(--grey);letter-spacing:.05em}
+.ac div:hover small,.ac div.sel small{color:#9a9aa4}
+.vs{font-family:Anton;font-size:19px;color:var(--grey);text-align:center;padding-top:41px}
+
+/* career version — one control, hidden until a fighter is chosen, so the
+   default path stays a two-field form */
+.ver{display:none;margin-top:9px;align-items:center;gap:11px}
+.ver.on{display:flex}
+/* Still a real <select> — native keyboard handling, native mobile wheel, and no
+   JS listbox to get wrong. Only the closed state is ours: appearance:none plus a
+   drawn caret, because the default was OS chrome sitting in the middle of a
+   bespoke interface and it was the most off-brand object on the page. The open
+   popup is the browser's, and color-scheme:dark is what stops it being white. */
+.ver select{
+  appearance:none;-webkit-appearance:none;
+  background:var(--surf-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2375757e' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center/9px 6px;
+  border:1px solid var(--line);color:var(--ink);
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  padding:8px 28px 8px 11px;border-radius:2px;outline:none;cursor:pointer;flex:none;
+  transition:border-color var(--dur-tick),background-color var(--dur-tick)}
+.ver select:hover{border-color:#34343f;background-color:var(--surf-3)}
+.corner.a .ver select:focus-visible{border-color:var(--blue);outline:2px solid var(--blue);outline-offset:2px}
+.corner.b .ver select:focus-visible{border-color:var(--red);outline:2px solid var(--red);outline-offset:2px}
+
+/* ---- tale of the tape ----------------------------------------------------
+   Replaces the single grey stat line. Stays hidden until a corner is filled,
+   so the cold page is still two fields and a button. One fighter draws half a
+   VS screen; the second completes it. */
+.tape{display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.tape.on{display:block;animation:tapein var(--dur-reveal) var(--ease-out)}
+@keyframes tapein{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+.plates{display:grid;grid-template-columns:1fr 58px 1fr;gap:10px;align-items:center}
+.plate{min-width:0}
+.plate.b{text-align:right}
+.pname{font-family:Anton;font-size:clamp(19px,3.5vw,33px);line-height:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plate.a .pname{color:var(--blue)}
+.plate.b .pname{color:var(--red)}
+/* must out-specify .plate.b .pname, or the empty slot shouts in full red */
+.plate .pname.wait{color:#2b2b34}
+.pver{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--grey);margin-top:7px;height:12px}
+.pdiv{margin-top:8px;min-height:24px}
+.chip{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.15em;
+  padding:5px 9px;border:1px solid #26262e;color:#8e8e98;border-radius:2px;white-space:nowrap}
+.chip b{color:#d6d6d4;font-weight:400}
+.plate.a .chip{border-color:#16304f;color:#8badd8}
+.plate.a .chip b{color:var(--blue)}
+.plate.b .chip{border-color:#3d1519;color:#b98287}
+.plate.b .chip b{color:var(--red)}
+
+.pvs{display:flex;justify-content:center}
+.pvs span{display:flex;align-items:center;justify-content:center;width:42px;height:42px;
+  border:1px solid rgba(255,255,255,.16);transform:rotate(45deg);flex:none;
+  box-shadow:-10px 0 24px -7px rgba(43,127,255,.75),10px 0 24px -7px rgba(224,26,34,.75)}
+.pvs i{font-family:Anton;font-size:13px;color:var(--ink);font-style:normal;
+  transform:rotate(-45deg);letter-spacing:.06em}
+.tape.duel .pvs span{animation:vspulse var(--dur-impact) var(--ease-impact)}
+@keyframes vspulse{
+  0%{transform:rotate(45deg) scale(.55);border-color:#fff}
+  60%{transform:rotate(45deg) scale(1.14);border-color:#fff}
+  100%{transform:rotate(45deg) scale(1)}}
+
+/* out-of-distribution warning, stated before the button rather than after it */
+.cw{display:none;margin-top:13px;text-align:center}
+.cw.on{display:block}
+.cw span{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  color:var(--red);border:1px solid #4a1418;background:#150a0b;padding:6px 13px;border-radius:2px}
+
+/* the rows. Centre label, values pinned to the outer edges, and a
+   centre-anchored bar showing the gap — never a score, just the distance. */
+/* THE SPINE. Every row's centre label, every gap bar's origin and the VS above
+   them already sat on this line — it was just never drawn, so the alignment read
+   as coincidence rather than structure. It is also the only line on the tape
+   that means something: it is zero, the point at which neither fighter leads.
+   Dimmer than the per-row ticks it connects, so it reads as connective tissue
+   and not as another mark. */
+.rows{max-width:760px;margin:18px auto 0;position:relative}
+.rows::before{content:"";position:absolute;left:50%;top:2px;bottom:2px;width:1px;
+  pointer-events:none;
+  background:linear-gradient(180deg,transparent,#1e1e26 9%,#1e1e26 91%,transparent)}
+/* the gap bar hangs off the bottom of its own row, so the row is padded
+   top-heavy — otherwise the bar reads as belonging to the row beneath it */
+.tr{position:relative;display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:baseline;gap:14px;padding:11px 0 5px}
+.tr .tv{font-family:Barlow;font-weight:700;font-size:18px;color:#a8a8b2;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.tr .tv.b{text-align:right}
+.tr.lead-a .tv.a{color:var(--blue)}
+.tr.lead-b .tv.b{color:var(--red)}
+.tr .tv.st{font-family:var(--mono);font-size:11px;letter-spacing:.12em}
+.tr .tl{font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;color:#55555f;white-space:nowrap}
+.tr .tk{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--line-2);border-radius:2px}
+.tr .tk em{position:absolute;left:50%;top:-2px;width:1px;height:7px;background:#2c2c35}
+/* the outer end is the reading end — round it there and leave the origin square
+   against the spine, so the bar visibly grows away from zero */
+.tr .tk b{position:absolute;top:0;height:100%;display:block}
+.tr .tk b.a{background:var(--blue)}
+.tr .tk b.b{background:var(--red)}
+.tr .tk b.n{background:#3d3d47}
+/* which way the bar grows is a separate question from whose colour it wears —
+   the age row grows toward a fighter in neutral grey and still needs its outer
+   end rounded, so the direction rides its own class rather than the hue's */
+.tr .tk b.ra{border-radius:2px 0 0 2px}
+.tr .tk b.rb{border-radius:0 2px 2px 0}
+.tr.hero{padding:4px 0 6px}
+.tr.hero .tv{font-family:Anton;font-weight:400;font-size:27px;color:#8e8e98}
+.tr.hero.lead-a .tv.a{color:var(--blue)}
+.tr.hero .tk{height:3px}
+
+/* the fingerprint — six axes, both fighters, one shape each */
+.fp{margin-top:var(--sp-4);text-align:center}
+.fp svg{width:100%;max-width:420px;height:auto}
+.hex .ring{fill:none;stroke:#191920;stroke-width:1}
+.hex .spoke{stroke:#16161c;stroke-width:1}
+.hex .ax{font-family:var(--mono);font-size:var(--fs-micro);letter-spacing:.13em;fill:#55555f}
+.hex .sh{stroke-width:2;stroke-linejoin:round}
+.hex .sh.pa{fill:rgba(43,127,255,.16);stroke:var(--blue)}
+.hex .sh.pb{fill:rgba(224,26,34,.16);stroke:var(--red)}
+/* the two shapes cross, so every vertex sits on top of the other fighter's
+   stroke or fill. A surface ring is what keeps a dot readable there. */
+.hex .dot{stroke:var(--bg);stroke-width:1.6}
+.hex .dot.pa{fill:var(--blue)}.hex .dot.pb{fill:var(--red)}
+.hex .grow{animation:grow var(--dur-impact) var(--ease-impact)}
+@keyframes grow{from{transform:scale(.45);opacity:0}to{transform:none;opacity:1}}
+.fpc{margin-top:6px;font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;color:#4b4b55}
+
+/* Disabled, this was the largest and heaviest object on a cold page: the one
+   thing you cannot use carrying more weight than anything you can. It is a
+   hairline until it can actually do something, then it takes the mass — and the
+   glow — of the red corner. The 1px transparent border keeps both states the
+   same height, so arming it moves nothing. */
+.go{margin-top:var(--sp-4);width:100%;background:var(--red);color:#fff;
+  border:1px solid transparent;
+  font-family:Anton;font-size:25px;letter-spacing:.06em;padding:18px;cursor:pointer;
+  border-radius:2px;
+  transition:background var(--dur-tick),color var(--dur-tick),
+             border-color var(--dur-tick),box-shadow var(--dur-reveal) var(--ease-out)}
+/* restrained on purpose — a wide halo washed over the seed links below and read
+   as an effect rather than as a lit control */
+.go:not(:disabled){box-shadow:0 10px 30px -20px rgba(224,26,34,.75)}
+.go:hover:not(:disabled){background:#f52530}
+.go:disabled{background:transparent;border-color:var(--line);color:#4a4a54;
+  cursor:not-allowed;box-shadow:none}
+.hint{margin-top:var(--sp-3);font-family:var(--mono);font-size:10.5px;color:var(--grey);
+  text-align:center;letter-spacing:.05em;text-wrap:balance}
+.hint span{color:var(--red);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+/* stage */
+.stage{display:none;margin-top:6px}
+.stage.on{display:block}
+.names{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px}
+.names div{font-family:Anton;font-size:clamp(20px,4.4vw,35px);line-height:.95;max-width:44%}
+.names div:first-child{color:var(--blue)}
+.names div:last-child{text-align:right;color:var(--red)}
+.names i{display:block;font-family:var(--mono);font-style:normal;font-size:10.5px;
+  letter-spacing:.14em;color:var(--grey);margin-top:7px}
+
+/* weight-gap disclosure */
+.wgap{display:none;margin-bottom:14px;padding:12px 15px;border-left:3px solid var(--red);
+  background:#141014;font-family:var(--mono);font-size:11.5px;line-height:1.6;
+  color:#c8c8ce;letter-spacing:.03em}
+.wgap.on{display:block}
+.wgap b{color:var(--red);font-weight:400}
+.wgap.same{border-left-color:#2a2a32;background:#0e0e12;color:var(--grey)}
+.wgap.same b{color:var(--grey)}
+
+
+/* ---- the method screen ---------------------------------------------------
+   Shown once, remembered, reopenable from the masthead. Three beats: what it
+   runs, how it was validated, and why its headline number is WORSE than the
+   competition's — which is the only part a sceptic actually needs. */
+.intro{position:fixed;inset:0;z-index:90;background:var(--surf-0);display:none;
+  overflow-y:auto;padding:var(--sp-5) var(--sp-4)}
+/* no entrance fade — this is the first paint, and fading in over the page
+   behind it just looks like a rendering fault */
+.intro.on{display:block}
+.intro::before{content:"";position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 44% at 6% -6%,rgba(43,127,255,.16),transparent 60%),
+             radial-gradient(ellipse 60% 44% at 94% -6%,rgba(224,26,34,.16),transparent 60%)}
+.ibox{max-width:720px;margin:0 auto;position:relative;padding-bottom:20px}
+.imark{display:flex;align-items:center;gap:clamp(12px,1.8vw,20px)}
+.imark .glyph{width:clamp(48px,8vw,74px);height:clamp(48px,8vw,74px)}
+.imark .wm{font-size:clamp(38px,7vw,62px);letter-spacing:.01em}
+.ilead{font-size:clamp(19px,2.6vw,25px);font-weight:600;color:#d8d8dc;line-height:1.32;
+  margin-top:16px;max-width:30ch;text-wrap:balance}
+.ipts{margin-top:30px;display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}
+.ipt{background:#0b0b0f;padding:16px 18px;display:grid;grid-template-columns:150px 1fr;gap:18px;
+  align-items:start}
+.ipt b{font-family:Anton;font-size:26px;line-height:1.05;font-weight:400;color:var(--ink);
+  letter-spacing:.01em}
+.ipt.k1 b{color:var(--blue)} .ipt.k3 b{color:var(--red)}
+.ipt span{font-size:15.5px;font-weight:500;color:#9c9ca6;line-height:1.5}
+.ipt span i{font-style:normal;color:#d2d2d8}
+.ifoot{margin-top:22px;font-family:var(--mono);font-size:11.5px;line-height:1.75;
+  color:#6c6c76;letter-spacing:.02em}
+.ifoot b{color:#a8a8b2;font-weight:400}
+.ienter{margin-top:26px;width:100%;background:var(--red);color:#fff;border:0;font-family:Anton;
+  font-size:23px;letter-spacing:.08em;padding:18px;cursor:pointer;border-radius:2px}
+.ienter:hover{background:#f52530}
+.ienter:focus-visible,.method:focus-visible,.go:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.method{background:none;border:1px solid var(--line);color:var(--grey);font-family:var(--mono);
+  font-size:9px;letter-spacing:.16em;padding:6px 10px;cursor:pointer;border-radius:2px}
+.method:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ---- EVENT panel ---------------------------------------------------------
+   Shares .intro/.ibox so the two overlays cannot drift apart. Everything below
+   is the parts a single matchup does not have: the input pair, the results
+   table, and the refusal treatment that is the whole point of the screen. */
+.ebox{max-width:760px}
+.etag{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--bg);
+  background:var(--blue);padding:3px 7px 2px;border-radius:2px;margin-left:12px;vertical-align:3px}
+.efield{margin-top:20px}
+.efield label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+  color:var(--grey);margin-bottom:6px}
+.efield label b{color:var(--ink);font-weight:400}
+.efield input,.efield textarea{width:100%;background:var(--surf-3);border:1px solid var(--line);
+  color:var(--ink);font-family:Barlow,system-ui,sans-serif;font-size:15px;padding:10px 12px;
+  border-radius:2px;outline:none;resize:vertical}
+.efield textarea{font-family:var(--mono);font-size:13px;line-height:1.7}
+.efield input:focus,.efield textarea:focus{border-color:var(--blue)}
+.ewarn{margin-top:12px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--red);
+  display:none}
+.ewarn.on{display:block}
+.eout{margin-top:22px;display:none}
+.eout.on{display:block}
+.erow{display:grid;grid-template-columns:1fr 128px 1fr 92px;gap:12px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.erow:last-child{border-bottom:0}
+.erow .ea{text-align:right;color:var(--blue)}
+.erow .eb{color:var(--red)}
+.erow.dec .ea,.erow.dec .eb{color:var(--grey)}
+.ebar{position:relative;height:10px;background:var(--line-2);border-radius:2px;overflow:hidden}
+.ebar i{position:absolute;top:0;bottom:0;left:0;background:var(--blue)}
+.ebar u{position:absolute;top:0;bottom:0;right:0;background:var(--red);text-decoration:none}
+.erow.dec .ebar i{background:#3d3d47}.erow.dec .ebar u{background:#3d3d47}
+.ep{font-family:var(--mono);font-size:12.5px;text-align:right;color:var(--ink)}
+.erow.dec .ep{color:var(--grey);font-size:10.5px;letter-spacing:.1em}
+.ehead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;color:var(--grey)}
+.eacts{margin-top:22px;display:none;gap:10px;align-items:center;flex-wrap:wrap}
+.eacts.on{display:flex}
+.eacts .save{margin:0;width:auto;padding:0 22px}
+.esaved{font-family:var(--mono);font-size:11px;color:var(--grey)}
+@media(max-width:620px){
+  .erow{grid-template-columns:1fr 70px 1fr 66px;gap:8px;font-size:12.5px}
+  .ep{font-size:11px}.erow.dec .ep{font-size:9px}
+}
+@media(max-width:640px){ .ipt{grid-template-columns:1fr;gap:6px} .ipt b{font-size:22px} }
+
+/* ---- the pipeline rig ---------------------------------------------------- */
+.rigbar{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:#5c5c66}
+.rigbar .step{color:var(--ink)}
+.rigbar .plabel{flex:1;color:#8e8e98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rigbar .pnum{color:var(--ink);font-variant-numeric:tabular-nums}
+.rail{height:2px;background:var(--line-2);margin-bottom:9px;position:relative;overflow:hidden;
+  transition:opacity var(--dur-reveal) var(--ease-out)}
+.rail i{position:absolute;inset:0 auto 0 0;background:var(--blue);width:0}
+/* once the run is over the rail is a full-width blue line reporting that
+   something has finished — loud, and saying nothing. It recedes. */
+.stage.settled .rail{opacity:.3}
+
+/* ---- the sim ------------------------------------------------------------
+   Two beams meet at the running posterior. Every rollout that lands is emitted
+   as a real particle from the collision, so the sparks are the sample, not
+   decoration — and the storm scales with the entropy of the split. */
+/* taller than it was: the column widened in stage 1 and the well gained width
+   without height, which left the early phases as thin bands in a 4:1 box. The
+   sigmoid in phase 04 uses the full height, so it gains the most. */
+.sim{position:relative;height:300px;border-radius:2px;overflow:hidden;
+  border:1px solid var(--line);background:var(--surf-0)}
+.sim canvas{display:block;width:100%;height:100%}
+.tnum{display:flex;justify-content:space-between;margin-top:var(--sp-3);font-family:Anton;
+  font-size:36px;line-height:1}
+.tnum span:first-child{color:var(--blue)}
+.tnum span:last-child{color:var(--red)}
+
+/* THE SPLIT. The exported card has had this since the beginning and the page
+   never did — it is the clearest single picture of the distribution, and it was
+   only ever visible to people who saved the image.
+   It fills as the run proceeds: total filled = draws taken, so the dark
+   remainder is genuinely "not yet sampled" rather than decoration, and the
+   split lands on its final proportion instead of appearing at it. */
+.split{position:relative;height:9px;margin-top:10px;background:var(--line-2);
+  border-radius:2px;overflow:hidden}
+.split i{position:absolute;top:0;height:100%;display:block;width:0}
+.split i.sa{left:0;background:var(--blue);border-radius:2px 0 0 2px}
+.split i.sb{right:0;background:var(--red);border-radius:0 2px 2px 0}
+.meter{margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--grey);
+  display:flex;justify-content:space-between;letter-spacing:.06em}
+
+/* juror stream */
+/* The stream is process, not result. While the run is going it is the thing
+   worth watching; the moment it stops it is 212px of frozen scrollback sitting
+   between you and the answer, so it contracts to its last few rows and hands
+   the page over to the verdict. */
+.stream{margin-top:var(--sp-4);height:212px;overflow:hidden;position:relative;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 0;
+  transition:height var(--dur-reveal) var(--ease-out),opacity var(--dur-reveal) var(--ease-out)}
+.stage.settled .stream{height:74px;opacity:.55}
+.stream::after{content:"";position:absolute;left:0;right:0;bottom:0;height:80px;
+  background:linear-gradient(transparent,var(--bg));pointer-events:none}
+.row{font-family:var(--mono);font-size:12px;letter-spacing:.03em;padding:2.5px 0;
+  display:flex;gap:12px;color:#5e5e68;animation:slide var(--dur-reveal) var(--ease-out)}
+@keyframes slide{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+.row .id{color:#3d3d46;width:96px;flex:none}
+.row .who{width:170px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.aw .who{color:#6ba4ff}.row.bw .who{color:var(--red)}
+.row .m{color:#4e4e58}
+.row.fin .m{color:#8a8a94}
+
+/* ---- attribution --------------------------------------------------------
+   Diverging, because the quantity has a natural zero and two poles: log-odds
+   toward the blue corner or toward the red one. This is not an invented
+   attribute rating — it is coef x scaled feature, the terms the model summed. */
+.attr{border:1px solid var(--line);background:#0b0b0f;padding:17px 18px 15px;margin-bottom:22px}
+.attr h4{font-family:var(--mono);font-size:9.5px;letter-spacing:.34em;color:var(--grey);
+  font-weight:400;margin-bottom:4px}
+.attr .sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:#4e4e58;margin-bottom:14px}
+.ar{position:relative;display:grid;grid-template-columns:216px 1fr 52px;gap:12px;
+  align-items:center;padding:3.5px 0}
+.ar .an{font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:#8e8e98;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ar .at{position:relative;height:11px;background:#101016;border-radius:1px}
+.ar .at i{position:absolute;top:0;height:11px;display:block;border-radius:1px}
+.ar .at i.a{background:var(--blue)}.ar .at i.b{background:var(--red)}
+.ar .at u{position:absolute;left:50%;top:-3px;width:1px;height:17px;background:#3a3a45}
+.ar .av{font-family:var(--mono);font-size:10px;color:#6a6a74;text-align:right;
+  font-variant-numeric:tabular-nums}
+.ar.pa .av{color:#6ba4ff}.ar.pb .av{color:#e8676d}
+.attr .tot{display:flex;justify-content:space-between;margin-top:13px;padding-top:11px;
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.09em;color:#4e4e58}
+.attr .tot b{color:#9a9aa4;font-weight:400}
+
+/* verdict */
+.verdict{display:none;margin-top:30px}
+.verdict.on{display:block;animation:fade var(--dur-impact) var(--ease-out)}
+@keyframes fade{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+/* THE VERDICT BAR. This was a 14px stamp rotated 1.6 degrees — the emotional
+   peak of the whole product, set smaller than the fingerprint's axis labels.
+
+   State is carried by WEIGHT, not hue. Red on this page means RED CORNER, and a
+   red stamp sitting directly above a blue MODAL OUTCOME invites exactly the
+   misreading the palette exists to prevent. INDETERMINATE is the loudest of the
+   three because "no separation" is this tool's signature output rather than its
+   failure — and achromatic white actually outshouts red here, because red is
+   already spent on the CTA, the seeds and the disclosure. */
+.stamp{display:block;width:100%;font-family:Anton;font-size:clamp(19px,2.3vw,27px);
+  letter-spacing:.18em;text-align:center;padding:15px 16px;margin-bottom:var(--sp-4);
+  border:1px solid var(--line);color:#8e8e98;background:transparent;border-radius:2px}
+.stamp.conv{color:var(--ink);border-color:#3a3a45}
+.stamp.hung{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);margin-bottom:22px}
+.cell{background:#0d0d11;padding:17px 15px}
+.cell b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;
+  color:var(--grey);text-transform:uppercase;margin-bottom:8px;font-weight:400}
+/* stepped down from 29px: with the tail headline now at 44px these are the
+   supporting row, and they were competing with it for the same job */
+.cell u{display:block;font-family:Anton;font-size:26px;text-decoration:none;line-height:1}
+.cell u.r{color:var(--red)}
+.cell u.l{color:var(--blue)}
+.cell small{display:block;font-family:var(--mono);font-size:10px;color:var(--grey);margin-top:5px}
+
+/* The tail, rebuilt to the card's hierarchy: label, headline, the specific run,
+   then the fine print. The page had every part of this EXCEPT the headline —
+   the one line anyone would actually repost — so the block opened on a
+   paragraph and buried its own hook. */
+.dissent{border-left:3px solid var(--red);background:var(--surf-2);
+  padding:22px 24px 20px;margin-bottom:var(--sp-4)}
+.dissent.la{border-left-color:var(--blue)}
+.dissent.la h3 span,.dissent.la .q em{color:var(--blue)}
+.dissent h3{font-family:var(--mono);font-size:var(--fs-meta);letter-spacing:.34em;
+  color:var(--grey);font-weight:400;margin-bottom:var(--sp-3)}
+.dissent h3 span{color:var(--red)}
+.dissent .dhead{font-family:Anton;font-size:clamp(26px,3.5vw,44px);line-height:1.03;
+  color:var(--ink);letter-spacing:.004em;margin-bottom:var(--sp-3);text-wrap:balance}
+.dissent .q{font-family:var(--mono);font-size:12.5px;color:var(--ink);
+  background:var(--surf-4);padding:12px 14px;border-radius:2px;letter-spacing:.02em}
+.dissent .q em{color:var(--red);font-style:normal}
+/* demoted to what it now is: the explanation under the headline, not the lead */
+.dissent p{font-size:var(--fs-body);font-weight:500;color:#8e8e98;line-height:1.55;
+  margin-top:var(--sp-3)}
+.dissent p b{color:#c8c8ce;font-weight:600}
+
+.foot{border-top:1px solid var(--line);padding-top:15px;margin-top:26px;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:10px;color:var(--grey);letter-spacing:.05em}
+.acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:22px}
+.save{background:var(--red);color:#fff;border:0;font-family:Anton;font-size:17px;
+  letter-spacing:.08em;padding:14px 26px;cursor:pointer;border-radius:2px}
+.save:hover{background:#f52530}
+.again{background:none;border:1px solid var(--line);color:var(--grey);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.14em;padding:12px 17px;cursor:pointer;text-transform:uppercase}
+.again:hover{border-color:var(--red);color:var(--red)}
+#saved{font-family:var(--mono);font-size:10px;color:var(--red);letter-spacing:.05em;text-align:right}
+.warn{color:var(--red);font-family:var(--mono);font-size:11px;margin-top:11px;min-height:15px;letter-spacing:.04em}
+@media(max-width:640px){
+  /* the metadata block was right-aligned into a 390px column and broke into
+     three ragged lines with orphans ("FIGHTERS", "N=6,808 HELD OUT"), while
+     METHOD sat alone on a row of its own. Reordered into three clean rows:
+     wordmark + METHOD, then the tagline, then the metadata left-aligned. */
+  header{gap:var(--sp-2)}
+  .mark{font-size:26px}
+  .spacer{display:none}
+  .method{order:2;margin-left:auto}
+  .tag{order:3;width:100%;font-size:10px;letter-spacing:.18em}
+  /* tight enough that the second line lands whole instead of orphaning "OUT" */
+  .cal{order:4;width:100%;text-align:left;font-size:8.5px;letter-spacing:.01em;line-height:1.8}
+  /* each seed is one phrase — without this "GSP vs Makhachev" breaks across
+     lines and reads as two separate links */
+  .hint span{white-space:nowrap}
+  body::after{inset:6px}
+  .thesis{margin-bottom:var(--sp-4)}
+  .panel{grid-template-columns:1fr;gap:8px}.vs{padding:4px 0}
+  .grid{grid-template-columns:1fr}.names div{max-width:100%;font-size:24px}
+  .names{flex-direction:column;align-items:flex-start}.names div:last-child{text-align:left}
+  /* the tape stays two-up on phones — a stacked VS screen is not a VS screen */
+  .plates{grid-template-columns:1fr 40px 1fr;gap:6px}
+  .pvs span{width:32px;height:32px}.pvs i{font-size:11px}
+  .chip{font-size:8px;letter-spacing:.1em;padding:4px 6px}
+  /* 5px of bottom padding put the gap track 3px under the value text, close
+     enough at these sizes to read as an underline on the words rather than as
+     the row's own bar */
+  .tr{gap:8px;padding:10px 0 9px}.tr .tv{font-size:15px}.tr.hero .tv{font-size:22px}
+  .tr .tv.st{font-size:9.5px;letter-spacing:.06em}
+  .tr .tl{font-size:7.5px;letter-spacing:.14em}
+  .sim{height:214px}
+  .ar{grid-template-columns:124px 1fr 38px;gap:7px}
+  .ar .an{font-size:8px;letter-spacing:.02em}
+  .attr h4{letter-spacing:.2em}
+}
+@media(prefers-reduced-motion:reduce){
+  .tape.on,.tape.duel .pvs span,.hex .grow{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- THE MARK. Traced off the supplied artwork rather than embedded as a PNG:
+     the file has to stay offline and self-contained, and a logo that is vector
+     stays crisp on the 2160px share card as well as at 22px in the masthead.
+     Octagon = the cage. The axis is dead centre at x=50 and everything hangs
+     off it — fighter on the left, the sample on the right. That split is the
+     product, which is why the mark works. -->
+<svg style="display:none" aria-hidden="true"><symbol id="glyph" viewBox="0 0 100 100">
+  <path fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="miter"
+        d="M31 3.5H69L96.5 31V69L69 96.5H31L3.5 69V31Z"/>
+  <path fill="currentColor"
+        d="M35 19H49V66H46V52L30 44.5L29 51L40 59V81H35L17.5 66V36Z"/>
+  <rect x="49.4" y="13" width="1.2" height="74" fill="currentColor"/>
+  <g fill="currentColor"><rect x="50.6" y="15" width="2.6" height="0.8"/><rect x="50.6" y="18" width="2.6" height="0.8"/><rect x="50.6" y="21" width="2.6" height="0.8"/><rect x="50.6" y="24" width="2.6" height="0.8"/><rect x="50.6" y="27" width="2.6" height="0.8"/><rect x="50.6" y="30" width="2.6" height="0.8"/><rect x="50.6" y="33" width="2.6" height="0.8"/><rect x="50.6" y="36" width="2.6" height="0.8"/><rect x="50.6" y="39" width="2.6" height="0.8"/><rect x="50.6" y="42" width="2.6" height="0.8"/><rect x="50.6" y="45" width="2.6" height="0.8"/><rect x="50.6" y="48" width="2.6" height="0.8"/><rect x="50.6" y="51" width="2.6" height="0.8"/><rect x="50.6" y="54" width="2.6" height="0.8"/><rect x="50.6" y="57" width="2.6" height="0.8"/><rect x="50.6" y="60" width="2.6" height="0.8"/><rect x="50.6" y="63" width="2.6" height="0.8"/><rect x="50.6" y="66" width="2.6" height="0.8"/><rect x="50.6" y="69" width="2.6" height="0.8"/><rect x="50.6" y="72" width="2.6" height="0.8"/><rect x="50.6" y="75" width="2.6" height="0.8"/><rect x="50.6" y="78" width="2.6" height="0.8"/><rect x="50.6" y="81" width="2.6" height="0.8"/><rect x="50.6" y="84" width="2.6" height="0.8"/></g>
+  <g fill="currentColor"><rect x="57" y="18.2" width="5.0" height="2.3"/><rect x="57" y="23.0" width="6.0" height="2.3"/><rect x="68" y="23.0" width="3.0" height="2.3"/><rect x="57" y="29.4" width="9.0" height="2.3"/><rect x="71" y="29.4" width="4.0" height="2.3"/><rect x="62" y="35.8" width="4.0" height="2.3"/><rect x="70" y="35.8" width="11.0" height="2.3"/><rect x="62" y="42.2" width="4.0" height="2.3"/><rect x="68" y="42.2" width="4.0" height="2.3"/><rect x="76" y="42.2" width="7.0" height="2.3"/><rect x="57" y="48.6" width="7.0" height="2.3"/><rect x="67.5" y="48.6" width="1.5" height="2.3"/><rect x="71" y="48.6" width="15.0" height="2.3"/><rect x="57" y="55.0" width="13.0" height="2.3"/><rect x="75" y="55.0" width="14.0" height="2.3"/><rect x="60" y="61.4" width="6.0" height="2.3"/><rect x="57" y="67.8" width="6.0" height="2.3"/><rect x="68" y="67.8" width="10.0" height="2.3"/><rect x="60" y="74.2" width="4.0" height="2.3"/><rect x="68" y="74.2" width="3.0" height="2.3"/><rect x="57" y="80.6" width="4.0" height="2.3"/></g>
+</symbol></svg>
+
+<!-- METHOD — shown once, then remembered -->
+<div class="intro on" id="intro">
+  <div class="ibox">
+    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
+    <p class="ilead">Nobody can predict a fight. This measures how much nobody can.</p>
+    <div class="ipts">
+      <div class="ipt k1"><b>1,000</b><span>Monte Carlo rollouts per matchup, drawn through a calibrated
+        logistic fit on <i>6,457 UFC bouts</i>. You get the spread, never a call.</span></div>
+      <div class="ipt k2"><b>ROLLING<br>ORIGIN</b><span>Every feature is computed only from bouts that had
+        <i>already happened</i>; validation trains on everything before year N and tests on year N.
+        A random split scores higher on the same data by leaking a fighter's future into their own
+        past. <i>These numbers are lower because they are real.</i></span></div>
+      <div class="ipt k3"><b>40%</b><span>Of fights it refuses to call. On those it measured itself at
+        <i>52.0%</i> — a coin flip. On the 60% it will call it is right <i>67.2%</i> of the time.
+        Forced to call everything, <i>61.2%</i>.</span></div>
+    </div>
+    <p class="ifoot">ON THE <b>15.6%</b> IT CALLS ≥70%: <b>76.8%</b> · BRIER <b>0.230</b> ·
+      MEAN CALIBRATION ERROR <b>1.1</b> PTS, WORST BAND <b>2.5</b> · <b>3,404</b> HELD-OUT FIGHTS ·
+      NEVER SEES A BETTING LINE · WHEN IT HAS NOTHING, IT SAYS SO</p>
+    <button class="ienter" id="ienter">ENTER</button>
+  </div>
+</div>
+
+<!-- EVENT — the whole card at once, and the ones it refuses to call.
+     Built as an overlay on the same pattern as the method screen so it cannot
+     disturb the main page's layout: every existing screen diffs at 0.000%. -->
+<div class="intro" id="evpanel">
+  <div class="ibox ebox">
+    <div class="imark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span><span class="etag">EVENT</span></div>
+    <p class="ilead">One card. Every fight. The ones it will not call, marked as refused.</p>
+    <div class="efield">
+      <label for="ename">EVENT</label>
+      <input type="text" id="ename" autocomplete="off" spellcheck="false"
+             placeholder="UFC 330 · PHILADELPHIA · 15 AUG 2026">
+    </div>
+    <div class="efield">
+      <label for="ecard">BOUTS — ONE PER LINE, <b>A vs B</b>, TOP OF THE CARD FIRST</label>
+      <textarea id="ecard" spellcheck="false" rows="7"
+        placeholder="Islam Makhachev vs Ian Machado Garry&#10;Alex Pereira vs Magomed Ankalaev&#10;Sean O'Malley vs Merab Dvalishvili"></textarea>
+    </div>
+    <div class="ewarn" id="ewarn"></div>
+    <button class="ienter" id="erun">RUN THE CARD</button>
+    <div class="eout" id="eout"></div>
+    <div class="eacts" id="eacts">
+      <button class="save" id="esave">EXPORT THE SCORECARD</button>
+      <button class="again" id="ejson">Copy the receipt</button>
+      <button class="again" id="eclose">Close</button>
+      <span class="esaved" id="esaved"></span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="mark"><svg class="glyph" viewBox="0 0 100 100" aria-hidden="true"><use href="#glyph"/></svg><span class="wm">FIGHT SIM</span></div>
+    <div class="tag">1,000 Monte Carlo rollouts per matchup</div>
+    <div class="spacer"></div>
+    <button class="method" id="event">EVENT</button>
+    <button class="method" id="method">METHOD</button>
+    <div class="cal">L2 LOGISTIC · <b id="nfeat">—</b> FEATURES · <b id="nf">—</b> FIGHTERS · LINE-BLIND<br>
+      ROLLING-ORIGIN CV · BRIER <b>0.230</b> · ECE <b>1.1 PTS</b> · N=<b>3,404</b> FIGHTS HELD OUT</div>
+  </header>
+
+  <!-- EMPANEL -->
+  <section id="empanel">
+    <div class="thesis">
+      <div class="kick">NOT A PREDICTION. A DISTRIBUTION.</div>
+      <h1><span>Nobody can predict a fight.</span><br>This measures how much nobody can.</h1>
+    </div>
+    <div class="panel">
+      <div class="corner a">
+        <label>Blue corner</label>
+        <div class="field"><input type="text" id="ia" placeholder="Search a fighter…" autocomplete="off"><div class="ac" id="aca"></div></div>
+        <div class="ver" id="va"><select id="sa"></select></div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="corner b">
+        <label>Red corner</label>
+        <div class="field"><input type="text" id="ib" placeholder="Search a fighter…" autocomplete="off"><div class="ac" id="acb"></div></div>
+        <div class="ver" id="vb"><select id="sb"></select></div>
+      </div>
+    </div>
+
+    <!-- TALE OF THE TAPE — hidden until a corner is filled -->
+    <section class="tape" id="tape">
+      <div class="plates">
+        <div class="plate a">
+          <div class="pname wait" id="pna">AWAITING FIGHTER</div>
+          <div class="pver" id="pva"></div>
+          <div class="pdiv" id="pda"></div>
+        </div>
+        <div class="pvs"><span><i>VS</i></span></div>
+        <div class="plate b">
+          <div class="pname wait" id="pnb">AWAITING FIGHTER</div>
+          <div class="pver" id="pvb"></div>
+          <div class="pdiv" id="pdb"></div>
+        </div>
+      </div>
+      <div class="cw" id="cw"></div>
+      <div class="rows" id="rows"></div>
+      <div class="fp">
+        <svg class="hex" id="hex" viewBox="0 0 360 260" aria-hidden="true"></svg>
+        <div class="fpc" id="fpc"></div>
+      </div>
+    </section>
+
+    <div class="warn" id="warn"></div>
+    <button class="go" id="go" disabled>RUN THE SIM</button>
+    <div class="hint">SEED THE SIM · <span data-a="Jon Jones" data-b="Tom Aspinall">Jones vs Aspinall</span> ·
+      <span data-a="Georges St-Pierre" data-b="Islam Makhachev">GSP vs Makhachev</span> ·
+      <span data-a="Shara Magomedov" data-b="Michel Pereira">Magomedov vs Pereira</span></div>
+  </section>
+
+  <!-- DELIBERATION -->
+  <section class="stage" id="stage">
+    <div class="names"><div id="na"></div><div id="nb"></div></div>
+    <div class="wgap" id="wgap"></div>
+    <div class="rigbar"><span class="step" id="pstep">01 / 04</span>
+      <span class="plabel" id="plabel">READING CAREER STATE</span>
+      <span class="pnum" id="pnum"></span></div>
+    <div class="rail"><i id="prail"></i></div>
+    <div class="sim"><canvas id="beam"></canvas></div>
+    <div class="tnum"><span id="ca">0</span><span id="cb">0</span></div>
+    <div class="split" id="split"><i class="sa"></i><i class="sb"></i></div>
+    <div class="meter"><span id="status">SAMPLING…</span><span id="ret">0 / 1000 ROLLOUTS</span></div>
+    <div class="stream" id="stream"></div>
+
+    <div class="verdict" id="verdict">
+      <div class="stamp" id="stamp">CONVERGED</div>
+      <div class="grid">
+        <div class="cell"><b>Modal outcome</b><u id="vmaj">—</u><small id="vmajs">—</small></div>
+        <div class="cell"><b>Termination</b><u id="vmeth">—</u><small id="vmeths">—</small></div>
+        <div class="cell"><b>Posterior</b><u id="vconf">—</u><small id="vconfs">—</small></div>
+      </div>
+      <!-- The tail sits ABOVE the attribution now. It is the shareable object
+           and the product's whole thesis; a dense technical panel was standing
+           between the headline numbers and the hook. The sceptic who wants the
+           arithmetic reads on — it did not go anywhere. -->
+      <div class="dissent" id="dissent">
+        <h3>THE <span>TAIL</span></h3>
+        <div class="dhead" id="dhead">—</div>
+        <div class="q" id="dquote">—</div>
+        <p id="dtext">—</p>
+      </div>
+      <div class="attr" id="attr">
+        <h4>WHAT MOVED THE POSTERIOR</h4>
+        <div class="sub" id="attrsub">—</div>
+        <div id="attrows"></div>
+        <div class="tot"><span id="attrl">—</span><span id="attrr">—</span></div>
+      </div>
+      <div class="acts">
+        <button class="save" id="save">EXPORT THE CARD</button>
+        <button class="again" id="copy">Copy image</button>
+        <button class="again" id="again">New matchup</button>
+      </div>
+      <div class="foot">
+        <div>FIGHT SIM · L2 LOGISTIC · LINE-BLIND · NOT A PREDICTION. A DISTRIBUTION.<br>
+          Data derived from UFCStats.com via the Greco1899/scrape_ufc_stats mirror.
+          Not affiliated with, endorsed by, or sponsored by the UFC, Zuffa LLC or TKO Group.</div>
+        <div id="saved"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+let M=null,FI=null,NAMES=[];
+const $=id=>document.getElementById(id);
+const N_JURORS=1000;
+
+function boot(d){
+  M=d.model; FI=d.fighters; NAMES=Object.keys(FI).sort();
+  $('nf').textContent=NAMES.length.toLocaleString();
+  /* The masthead used to state 32, hardcoded — M.feats.length, the named
+     stat and bio columns. That silently excluded elo and listed weight, so the
+     headline count left out ELO RATING, which is routinely the single largest
+     term in the attribution panel. The model consumes M.cols and sums one
+     coefficient per column; that count is 34 and it is what belongs on screen.
+     Derived, never typed, so a data rebuild cannot leave it stale. */
+  $('nfeat').textContent=M.cols.length;
+  const nver=NAMES.reduce((s,n)=>s+FI[n].v.length,0);
+  $('fpc').textContent=`SHAPE = PERCENTILE RANK ACROSS ${nver.toLocaleString()} `+
+    'CAREER VERSIONS · MEASURED OUTPUT, NOT PROJECTION';
+}
+// The built single-file version embeds the data, so it opens straight off disk
+// with no server. The source version falls back to fetch.
+const inline=document.getElementById('fjdata');
+if(inline){ boot(JSON.parse(inline.textContent)); }
+else fetch('data.json').then(r=>r.json()).then(boot)
+  .catch(()=>{ $('warn').textContent='Could not load data.json — this is index.html, the editable source, '+
+    'and the browser blocks its fetch over file://. Open FightSim.html instead (model and fighters are '+
+    'inlined into it), or serve this folder over http.'; });
+
+/* ---------- model ---------- */
+// Build the ordered difference vector the model expects: FEATS diffs, then elo.
+// Each fighter is a list of career versions, one per year they fought.
+// ver() hands back a single season in the shape the model expects.
+function ver(name,i){
+  const F=FI[name], k=(i==null?F.p:i), s=F.v[k];
+  return {f:s.f, elo:s.e, lbs:s.w, year:s.y, fights:s.n, isPrime:k===F.p, idx:k};
+}
+const primeOf=n=>ver(n,null);
+
+function diffVector(a,b){
+  const v=[];
+  for(let i=0;i<M.feats.length;i++){
+    const x=a.f[i], y=b.f[i];
+    v.push((x==null||y==null)?null:x-y);
+  }
+  v.push(a.elo-b.elo);
+  v.push((a.lbs==null||b.lbs==null)?null:a.lbs-b.lbs);
+  return v;
+}
+
+/* ---- the cross-division prior ----
+   Across 6,428 training fights the mean weight gap is 5.7 lbs and only 4 exceed
+   80 lbs. The learned weight coefficient therefore only knows what happens
+   inside a division; it cannot extrapolate to a heavyweight against a flyweight,
+   because that has never happened. So past one division we stop asking the data
+   and apply physics, explicitly and visibly.
+
+   Anchors: fighters moving up ONE division won 53.4% of 451 such fights in UFC
+   history — no penalty, so the first 20 lbs are free. Beyond that, mass drives
+   punch force and reach drives finishing odds, and the penalty compounds. */
+const FREE_LBS=20, PER_LB=0.05, CAP=5.0;
+function weightPrior(a,b){
+  if(a.lbs==null||b.lbs==null) return 0;
+  const d=a.lbs-b.lbs, mag=Math.abs(d);
+  if(mag<=FREE_LBS) return 0;
+  return Math.sign(d)*Math.min((mag-FREE_LBS)*PER_LB,CAP);
+}
+// The one place the destination is written. Every surface reads it from here
+// so a share can never circulate without a way back to the tool.
+const HOME='genicfilm.github.io/fightsim';
+const sigmoid=z=>1/(1+Math.exp(-z));
+// One standardized term per feature. Everything downstream — the pipeline
+// readout and the attribution panel — reads these same numbers, so what the
+// animation shows and what the model computed cannot drift apart.
+function terms(v,prior){
+  const t=new Float64Array(v.length);
+  for(let i=0;i<v.length;i++){
+    const raw=(v[i]==null)?M.impute[i]:v[i];
+    t[i]=M.coef[i]*((raw-M.mean[i])/M.scale[i]);
+  }
+  return t;
+}
+function logit(v,prior){
+  let z=M.intercept+(prior||0), t=terms(v,prior);
+  for(let i=0;i<t.length;i++) z+=t[i];
+  return z;
+}
+const probability=(v,prior)=>sigmoid(logit(v,prior));
+const DIVS=[[115,'Strawweight'],[125,'Flyweight'],[135,'Bantamweight'],[145,'Featherweight'],
+            [155,'Lightweight'],[170,'Welterweight'],[185,'Middleweight'],
+            [205,'Light Heavyweight'],[999,'Heavyweight']];
+const division=l=>l==null?'—':(DIVS.find(d=>l<=d[0])||DIVS[DIVS.length-1])[1];
+// Which features are performance stats that legitimately vary fight to fight.
+const VOLATILE=/^(ew_|ca_)f_(slpm|sapm|sacc|sdef|td15|tddef|ctrl|kd15|kdabs|sub15)$/;
+let volIdx=null;
+function volatileIndices(){
+  if(volIdx) return volIdx;
+  volIdx=[]; M.feats.forEach((f,i)=>{ if(VOLATILE.test(f)) volIdx.push(i); });
+  return volIdx;
+}
+function gauss(){ // Box-Muller
+  let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+/* ---- the rollout spread — DECLARED, NOT FITTED --------------------------
+   One rollout is one plausible run of the same fight. Be precise about what
+   this is: data.json ships a single coefficient vector and no covariance
+   matrix, so nothing here is a draw from a posterior over coefficients. Each
+   volatile feature is jittered by a Gaussian whose width is proportional to
+   the GAP BETWEEN THE TWO FIGHTERS on that feature, floored so that evenly
+   matched fighters still vary. No fighter's own bout-to-bout variance is read
+   anywhere — the file does not carry it.
+
+   The comment that used to sit here claimed the spread was "the spread they
+   actually show from fight to fight", which was never true and was the single
+   most misleading line in the file.
+
+   Both constants are hand-set, and both are printed on screen for the same
+   reason the weight prior is: a hidden fudge factor is how a tool loses
+   people, a declared one is how it keeps them. */
+const NOISE_GAIN=0.9, NOISE_FLOOR=0.25;
+// The termination heuristic's constants, hoisted so they are countable. See the
+// disclosure block inside empanel() — none of these are fitted or validated.
+const FIN_BASE=0.20, FIN_KD=0.10, FIN_SUB=0.06, FIN_MIN=0.15, FIN_MAX=0.75,
+      P_KO=0.62, RD1=0.45, RD2=0.78, SCHED_RD=3;
+function empanel(A,B,ia,ib){
+  const a=ver(A,ia),b=ver(B,ib);
+  const base=diffVector(a,b), idx=volatileIndices();
+  const prior=weightPrior(a,b);
+  const scale=idx.map(i=>Math.abs(base[i]==null?0:base[i])*NOISE_GAIN+NOISE_FLOOR);
+  const out=[];
+  for(let j=0;j<N_JURORS;j++){
+    const v=base.slice();
+    idx.forEach((i,k)=>{ if(v[i]!=null) v[i]+=gauss()*scale[k]; });
+    const z=logit(v,prior), p=sigmoid(z);
+    const aWins=Math.random()<p;
+    const win=aWins?A:B, s=aWins?a:b;
+    /* ---- HOW IT ENDS IS A HEURISTIC, NOT A MODEL ----
+       Everything below this line is declared, not fitted. There is no trained
+       method model, no competing-risks model and no survival model for round
+       or time anywhere in this project, and none of it is covered by the
+       rolling-origin validation that produced the win probability above.
+
+       Finish propensity reads the winner's own real knockdown and submission
+       rates, so it does vary by matchup — but the coefficients, the KO/SUB
+       split, the round weights and the clock are all hand-set. Three known
+       limits, disclosed on screen and on the card rather than hidden:
+         - every bout is scheduled for THREE rounds, so a five-round main
+           event can never terminate in R4 or R5 and every decision reads 5:00
+           of round 3;
+         - the clock is uniform inside the round, so a finish is as likely at
+           4:59 as at 0:15;
+         - the realised finish rate runs near 37%, against roughly 50% in the
+           real UFC.
+       Treat this block as a vignette attached to a measured probability. */
+    const kd=s.f[M.feats.indexOf('ew_f_kd15')]||0, sub=s.f[M.feats.indexOf('ew_f_sub15')]||0;
+    const pf=Math.min(FIN_MAX,Math.max(FIN_MIN,FIN_BASE+FIN_KD*kd+FIN_SUB*sub));
+    let method,round,time;
+    if(Math.random()<pf){
+      method=Math.random()<P_KO?'KO/TKO':'SUB';
+      const r=Math.random(); round=r<RD1?1:(r<RD2?2:SCHED_RD);
+      const t=15+Math.floor(Math.random()*285); time=(t/60|0)+':'+String(t%60).padStart(2,'0');
+    } else { method='DEC'; round=SCHED_RD; time='5:00'; }
+    out.push({win,aWins,method,round,time,z,p});
+  }
+  const z0=logit(base,prior);
+  return {jurors:out,p:sigmoid(z0),z0,prior,base,terms:terms(base,prior),va:a,vb:b,
+          gap:(a.lbs==null||b.lbs==null)?null:Math.round(a.lbs-b.lbs),
+          da:division(a.lbs),db:division(b.lbs)};
+}
+
+/* ---------- name resolution -------------------------------------------------
+   The index is keyed by UFCStats' exact spelling and lookup was exact, so
+   typing "jon jones" was declined as NOT IN THE INDEX — while the autocomplete
+   directly above it matched case-insensitively and listed him happily. The
+   "never guess a fighter" rule exists to stop the tool inventing people; it was
+   never meant to make it disown someone the file actually contains.
+
+   Folding is safe here rather than merely convenient: all 2,290 names fold to
+   2,290 distinct keys, so a fold can never resolve to the wrong fighter. The
+   index is pure ASCII, so stripping diacritics only ever helps the input side —
+   someone typing "José Aldo" now finds "Jose Aldo". */
+const fold=s=>s.trim().toLowerCase().normalize('NFD')
+               .replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+let FOLDED=null;
+function resolve(s){
+  if(!FI||!s) return '';
+  const raw=s.trim();
+  if(FI[raw]) return raw;                       // exact spelling — the common path
+  if(!FOLDED){ FOLDED=new Map(); for(const n of NAMES) FOLDED.set(fold(n),n); }
+  return FOLDED.get(fold(raw))||'';
+}
+
+/* ---------- autocomplete ---------- */
+function wireAC(input,box){
+  let sel=-1;
+  const close=()=>{box.classList.remove('on');box.innerHTML='';sel=-1};
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q||!NAMES.length) return close();
+    const hits=NAMES.filter(n=>n.toLowerCase().includes(q)).slice(0,8);
+    if(!hits.length) return close();
+    box.innerHTML=hits.map(n=>{const p=primeOf(n);
+      return `<div data-n="${n.replace(/"/g,'&quot;')}">${n}<small>PEAK ${p.year} · ${FI[n].v.length} CAREER STATES · ELO ${Math.round(p.elo)}</small></div>`;}).join('');
+    box.classList.add('on'); sel=-1;
+    box.querySelectorAll('div').forEach(el=>el.onclick=()=>{input.value=el.dataset.n;close();check();});
+  });
+  input.addEventListener('keydown',e=>{
+    const items=box.querySelectorAll('div'); if(!items.length)return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault(); sel=(sel+(e.key==='ArrowDown'?1:items.length-1))%items.length;
+      items.forEach((el,i)=>el.classList.toggle('sel',i===sel));
+      items[sel].scrollIntoView({block:'nearest'});
+    } else if(e.key==='Enter'&&sel>=0){ e.preventDefault(); input.value=items[sel].dataset.n; close(); check(); }
+    else if(e.key==='Escape') close();
+  });
+  // on the way out, show the spelling that was actually matched — confirmation
+  // that "jon jones" found Jon Jones. Done on blur, never mid-keystroke, so it
+  // cannot fight the cursor while someone is still typing.
+  input.addEventListener('blur',()=>setTimeout(()=>{
+    close();
+    const c=resolve(input.value);
+    if(c&&c!==input.value.trim()){ input.value=c; check(); }
+  },160));
+}
+wireAC($('ia'),$('aca')); wireAC($('ib'),$('acb'));
+
+/* Career-version picker. Defaults to PRIME so the feature costs nothing to
+   ignore — the page still reads as two fields and a button.
+   Rebuilt only when the fighter in that corner actually changes: check() runs
+   on every keystroke in EITHER field, and an unconditional rebuild reset the
+   other corner's year back to PRIME while you were still typing. */
+const verOf={sa:'',sb:''};
+function fillVersions(name,sel,wrap){
+  const key=(FI&&FI[name])?name:'';
+  if(verOf[sel.id]===key) return;
+  verOf[sel.id]=key;
+  if(!key){ wrap.classList.remove('on'); sel.innerHTML=''; return; }
+  const F=FI[name];
+  sel.innerHTML=F.v.map((s,i)=>{
+    const tag=i===F.p?'PRIME':(i===F.v.length-1?'LAST':'');
+    return `<option value="${i}">${s.y}${tag?'  '+tag:''}</option>`;
+  }).join('');
+  sel.value=F.p;
+  wrap.classList.add('on');
+}
+$('sa').addEventListener('change',syncTape);
+$('sb').addEventListener('change',syncTape);
+
+/* ---------- tale of the tape ----------------------------------------------
+   The empanel screen's job is to make the matchup legible before anyone
+   deliberates. Every number here is recorded output for the chosen career
+   year — the state the model itself reads. Nothing on this screen is a
+   forecast, and the bars measure distance between two fighters, not merit. */
+const featIx={};
+const fx=(s,k)=>{ if(!(k in featIx)) featIx[k]=M.feats.indexOf(k);
+                  const i=featIx[k]; return i<0?null:s.f[i]; };
+const feetIn=n=>`${Math.floor(n/12)}'${Math.round(n%12)}"`;
+const stanceOf=n=>(n&&FI[n]&&FI[n].s)?FI[n].s.toUpperCase():'—';
+
+// span = the gap that fills the bar to its full half-width. Set from the real
+// spread of each stat, so a 40-point Elo edge does not look like a landslide.
+const TAPE=[
+  {l:'ELO',        hero:1, g:s=>s.elo,       t:x=>Math.round(x),     span:220},
+  {l:'UFC FIGHTS',         g:s=>s.fights,    t:x=>String(x),         span:14},
+  {l:'WIN RATE',           g:s=>{const w=fx(s,'winrate'); return w==null?null:w*100},
+                                             t:x=>Math.round(x)+'%', span:35},
+  // age draws the gap but highlights nobody — older is not worse, just older
+  {l:'AGE',        flat:1, g:s=>fx(s,'age'), t:x=>x.toFixed(1),      span:7},
+  {l:'HEIGHT',             g:s=>fx(s,'h'),   t:feetIn,               span:6},
+  {l:'REACH',              g:s=>fx(s,'r'),   t:x=>Math.round(x)+'"', span:8},
+];
+function renderRows(a,b,an,bn){
+  const rows=TAPE.map(r=>{
+    const x=a?r.g(a):null, y=b?r.g(b):null;
+    const ax=x==null?'—':String(r.t(x)), bx=y==null?'—':String(r.t(y));
+    let cls='',fill='';
+    // compare what is printed, not what is stored: 0.882 and 0.875 both read
+    // "88%", and highlighting one of two identical numbers looks like a bug
+    if(x!=null&&y!=null&&ax!==bx){
+      const d=x-y, side=d>0?'a':'b',
+            w=Math.max(1.6,Math.min(50,Math.abs(d)/r.span*50));
+      if(!r.flat) cls=' lead-'+side;
+      fill=`<b class="${r.flat?'n':side} ${side==='a'?'ra':'rb'}" `+
+           `style="${side==='a'?'right':'left'}:50%;width:${w.toFixed(1)}%"></b>`;
+    }
+    return `<div class="tr${r.hero?' hero':''}${cls}">`+
+      `<span class="tv a">${ax}</span>`+
+      `<span class="tl">${r.l}</span>`+
+      `<span class="tv b">${bx}</span>`+
+      `<i class="tk"><em></em>${fill}</i></div>`;
+  });
+  // stance is categorical — there is no gap to draw
+  rows.push(`<div class="tr"><span class="tv a st">${stanceOf(an)}</span>`+
+    `<span class="tl">STANCE</span><span class="tv b st">${stanceOf(bn)}</span>`+
+    `<i class="tk"><em></em></i></div>`);
+  $('rows').innerHTML=rows.join('');
+}
+
+/* The fingerprint. Raw rates are unreadable side by side — 4.7 strikes a
+   minute means nothing without the field — so each axis is a percentile
+   against every career version in the file. Ties share their rank, otherwise
+   the 41% of versions with zero knockdowns would all read as dead last. */
+const AXES=[['STRIKING','ew_f_slpm'],['ACCURACY','ew_f_sacc'],['TAKEDOWNS','ew_f_td15'],
+            ['CONTROL','ew_f_ctrl'],['DEFENCE','ew_f_sdef'],['POWER','ew_f_kd15']];
+let PCT=null;
+function pctTables(){
+  if(PCT) return PCT;
+  const n=M.cols.length; PCT=Array.from({length:n},()=>[]);
+  for(const nm in FI) for(const st of FI[nm].v){
+    for(let i=0;i<M.feats.length;i++){ const x=st.f[i]; if(x!=null) PCT[i].push(x); }
+    if(st.e!=null) PCT[n-2].push(st.e);
+    if(st.w!=null) PCT[n-1].push(st.w);
+  }
+  for(const A of PCT) A.sort((p,q)=>p-q);
+  return PCT;
+}
+function pctAt(i,x){
+  const A=pctTables()[i];
+  if(x==null||!A||!A.length) return 50;
+  const bound=st=>{ let lo=0,hi=A.length;
+    while(lo<hi){ const m=(lo+hi)>>1; (st?A[m]<=x:A[m]<x)?lo=m+1:hi=m; } return lo; };
+  return (bound(0)+bound(1))/2/A.length*100;
+}
+const colIx={};
+function pctOf(k,x){
+  if(!(k in colIx)) colIx[k]=M.cols.indexOf(k);
+  return colIx[k]<0?50:pctAt(colIx[k],x);
+}
+// the 34-wide vector a fighter presents to the model, in column order
+const stateVec=v=>M.cols.map((c,i)=>i<M.feats.length?v.f[i]:(i===M.cols.length-2?v.elo:v.lbs));
+/* Geometry sized so the axis labels clear a full-percentile shape. At the old
+   r+20 a fighter in the 99th on any axis pushed the polygon edge right up under
+   its own label; the ring is r+28 now, and the viewBox grew to match so the
+   side labels ("TAKEDOWNS") still have room to run outward. */
+const HEX={cx:180,cy:130,r:88}, AXR=HEX.r+28;
+const hexPt=(i,rad)=>{ const a=(-90+i*60)*Math.PI/180;
+  return [HEX.cx+Math.cos(a)*rad, HEX.cy+Math.sin(a)*rad]; };
+const pts=arr=>arr.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+function renderHex(a,b){
+  let g='';
+  for(const t of [0.25,0.5,0.75,1])
+    g+=`<polygon class="ring" points="${pts(AXES.map((_,i)=>hexPt(i,HEX.r*t)))}"/>`;
+  AXES.forEach((_,i)=>{ const p=hexPt(i,HEX.r);
+    g+=`<line class="spoke" x1="${HEX.cx}" y1="${HEX.cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}"/>`; });
+  const shape=s=>{
+    if(!s) return null;
+    // 8% floor so a fighter who does none of something is still a visible shape
+    const P=AXES.map(([,k],i)=>{
+      const p=pctOf(k,fx(s,k));
+      return {p, xy:hexPt(i,HEX.r*(0.08+0.92*p/100))};
+    });
+    return {area:P.reduce((t,q)=>t+q.p*q.p,0), pts:P.map(q=>q.xy)};
+  };
+  const svgShape=(S,c)=>S?`<polygon class="sh ${c}" points="${pts(S.pts)}"/>`+
+    S.pts.map(p=>`<circle class="dot ${c}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.9"/>`).join(''):'';
+  // bigger shape goes underneath, or it swallows the smaller one whole
+  const SA=shape(a), SB=shape(b);
+  const order=(SA&&SB&&SB.area>SA.area)?[[SB,'pb'],[SA,'pa']]:[[SA,'pa'],[SB,'pb']];
+  const sh=order.map(([S,c])=>svgShape(S,c)).join('');
+  if(sh) g+=`<g class="grow" style="transform-origin:${HEX.cx}px ${HEX.cy}px">${sh}</g>`;
+  AXES.forEach(([lab],i)=>{
+    const [x,y]=hexPt(i,AXR), a2=(-90+i*60)*Math.PI/180, c=Math.cos(a2), s=Math.sin(a2);
+    g+=`<text class="ax" x="${x.toFixed(1)}" y="${(y+(s<-0.5?-2:s>0.5?9:3.5)).toFixed(1)}" `+
+       `text-anchor="${Math.abs(c)<0.2?'middle':(c>0?'start':'end')}">${lab}</text>`;
+  });
+  $('hex').innerHTML=g;
+}
+
+let tapeKey='', duelOn=false;
+function plate(name,sel,pn,pv,pd){
+  if(!(FI&&FI[name])){
+    pn.textContent='AWAITING FIGHTER'; pn.className='pname wait';
+    pv.textContent=''; pd.innerHTML=''; return null;
+  }
+  const s=ver(name,+sel.value||0);
+  pn.textContent=name.toUpperCase(); pn.className='pname';
+  pv.textContent=`${s.year}${s.isPrime?' · PRIME':''}`;
+  pd.innerHTML=s.lbs==null?'<span class="chip">DIVISION NOT LISTED</span>'
+    :`<span class="chip"><b>${s.lbs} LB</b> · ${division(s.lbs).toUpperCase()}</span>`;
+  return s;
+}
+function syncTape(){
+  const an=resolve($('ia').value), bn=resolve($('ib').value);
+  const okA=!!an, okB=!!bn;
+  const key=`${an}|${okA?$('sa').value:''}|${bn}|${okB?$('sb').value:''}`;
+  if(key===tapeKey) return;
+  tapeKey=key;
+  const a=plate(an,$('sa'),$('pna'),$('pva'),$('pda'));
+  const b=plate(bn,$('sb'),$('pnb'),$('pvb'),$('pdb'));
+  $('tape').classList.toggle('on',!!(a||b));
+  // the thesis retires as soon as it has been replaced by an actual matchup,
+  // and comes back on reset. Set before the early return below, or clearing the
+  // corners would leave the page armed with nothing in it.
+  $('empanel').classList.toggle('armed',!!(a||b));
+  if(!a&&!b){ duelOn=false; $('tape').classList.remove('duel'); return; }
+  renderRows(a,b,okA?an:null,okB?bn:null);
+  renderHex(a,b);
+  // Say the model is off its data BEFORE the button, not only after it.
+  const gap=(a&&b&&a.lbs!=null&&b.lbs!=null)?Math.abs(a.lbs-b.lbs):null;
+  const cw=$('cw');
+  cw.classList.toggle('on',gap!=null&&gap>FREE_LBS);
+  if(gap!=null&&gap>FREE_LBS)
+    cw.innerHTML=`<span>CATCHWEIGHT · ${gap} LB GAP · NO UFC PRECEDENT — PHYSICAL PRIOR APPLIED</span>`;
+  const duel=!!(a&&b);
+  if(duel!==duelOn){ duelOn=duel; $('tape').classList.toggle('duel',duel); }
+}
+
+function check(){
+  // raw = what was typed, and what the refusal quotes back. a/b = the canonical
+  // index name, or '' when there genuinely is no such fighter.
+  const ra=$('ia').value.trim(), rb=$('ib').value.trim();
+  const a=resolve(ra), b=resolve(rb);
+  fillVersions(a,$('sa'),$('va'));
+  fillVersions(b,$('sb'),$('vb'));
+  syncTape();
+  let msg='';
+  if(ra&&!a) msg=`NO UFC RECORD FOR "${ra.toUpperCase()}" — NOT IN THE INDEX.`;
+  else if(rb&&!b) msg=`NO UFC RECORD FOR "${rb.toUpperCase()}" — NOT IN THE INDEX.`;
+  // compared canonically, so "jon jones" vs "JON JONES" is still one fighter
+  else if(a&&b&&a===b) msg='DEGENERATE MATCHUP — THE FEATURE DELTA IS THE ZERO VECTOR.';
+  $('warn').textContent=msg;
+  $('go').disabled=!(a&&b&&a!==b);
+}
+$('ia').addEventListener('input',check); $('ib').addEventListener('input',check);
+document.querySelectorAll('.hint span').forEach(s=>s.onclick=()=>{
+  $('ia').value=s.dataset.a; $('ib').value=s.dataset.b; check();
+});
+
+/* ---------- the pipeline ----------------------------------------------------
+   This used to be a spark storm. It was replaced because decoration on a
+   statistics tool costs credibility instead of adding it — every spark WAS a
+   rollout, but nothing about watching them was checkable, so it read as a toy.
+
+   What runs now is the computation itself, in the order the model performs it,
+   with the real numbers on screen at every step:
+
+     01  the two 34-dimensional career-state vectors, cell = percentile rank
+     02  Δ = a − b, standardised to the training distribution
+     03  × coefficient per term, and the running Σ swept left to right
+     04  1,000 perturbed draws through the logistic link, plotted ON the curve
+
+   Step 03 ends on the same Σ the attribution panel prints, and step 04's
+   crosshair sits at the same posterior the verdict reports. If the animation
+   and the arithmetic ever disagreed, it would be visible here — which is the
+   point of drawing it this way rather than prettily. */
+const RGB={b:[43,127,255],bh:[150,196,255],r:[224,26,34],rh:[255,120,124],g:[120,120,132]};
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const CALM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const entropy=p=>(p<=0||p>=1)?0:-(p*Math.log2(p)+(1-p)*Math.log2(1-p));
+
+const PHASES=CALM
+  ? [['READING CAREER STATE',260],['DIFFERENCING · STANDARDISING',220],
+     ['APPLYING COEFFICIENTS',300],['PERTURBING · RESAMPLING',1400],['',420]]
+  : [['READING CAREER STATE',1500],['DIFFERENCING · STANDARDISING',1300],
+     ['APPLYING COEFFICIENTS',1800],['PERTURBING · RESAMPLING',6400],['',800]];
+const PEND=PHASES.reduce((a,ph)=>(a.push((a[a.length-1]||0)+ph[1]),a),[]);
+
+const SIM={cv:null,x:null,acc:null,ax:null,w:0,h:0,dpr:1,raf:0,t0:0,D:null,
+           taken:0,streamed:0,done:null,fin:false};
+const SPA=$('split').querySelector('.sa'), SPB=$('split').querySelector('.sb');
+
+function simSize(){
+  const cv=$('beam'); if(!cv) return;
+  const box=cv.parentElement.getBoundingClientRect();
+  SIM.cv=cv; SIM.dpr=Math.min(2,window.devicePixelRatio||1);
+  SIM.w=Math.max(280,Math.round(box.width)); SIM.h=Math.max(140,Math.round(box.height));
+  cv.width=Math.round(SIM.w*SIM.dpr); cv.height=Math.round(SIM.h*SIM.dpr);
+  SIM.x=cv.getContext('2d'); SIM.x.setTransform(SIM.dpr,0,0,SIM.dpr,0,0);
+  SIM.acc=document.createElement('canvas');                 // sample points accumulate here
+  SIM.acc.width=cv.width; SIM.acc.height=cv.height;
+  SIM.ax=SIM.acc.getContext('2d'); SIM.ax.setTransform(SIM.dpr,0,0,SIM.dpr,0,0);
+}
+
+const PAD=12;
+const ease=t=>t<0?0:t>1?1:1-Math.pow(1-t,3);
+
+/* Vertical layout of the well, derived from its height instead of hardcoded.
+   The strips used to sit at fixed pixel offsets tuned for a 268px box in a
+   940px column; after the column widened they became thin bands floating in
+   dead space. Everything below is a proportion, so the well can change size
+   again without anyone re-tuning six magic numbers. */
+function wellRows(H){
+  const ch=Math.round(H*0.185);                 // one career-state strip
+  const gap=Math.round(H*0.165);                // the air between the two corners
+  const dh=Math.round(H*0.26);                  // the differenced strip
+  return {ch,gap,dh,
+          dmid:Math.round((H-dh)/2)+4,          // delta strip, optically centred
+          yA:Math.round((H-(2*ch+gap))/2),
+          yB:Math.round((H-(2*ch+gap))/2)+ch+gap};
+}
+function label(step,txt,num,frac){
+  $('pstep').textContent=step; $('plabel').textContent=txt;
+  $('pnum').textContent=num; $('prail').style.width=(frac*100).toFixed(1)+'%';
+}
+function grid(x,W,H){                                       // recessive graph paper
+  x.strokeStyle='#101015'; x.lineWidth=1;
+  for(let gx=PAD;gx<=W-PAD;gx+=Math.max(28,(W-PAD*2)/16)){
+    x.beginPath(); x.moveTo(Math.round(gx)+.5,10); x.lineTo(Math.round(gx)+.5,H-10); x.stroke();
+  }
+}
+
+/* 01 — the two career-state vectors */
+function drawVectors(x,W,H,D,pr,merge){
+  const N=M.cols.length, cw=(W-PAD*2)/N, L=wellRows(H), ch=L.ch;
+  // the two corners converge on where the difference is about to be drawn,
+  // fading out as they arrive
+  const yA=merge>0?L.yA+(L.dmid-8-L.yA)*merge:L.yA;
+  const yB=merge>0?L.yB-(L.yB-(L.dmid+8))*merge:L.yB;
+  const shown=merge>0?N:Math.round(ease(pr)*N);
+  for(let i=0;i<N;i++){
+    if(i>=shown) break;
+    const fade=merge>0?1-merge:1;
+    if(fade>0.01){
+      for(const [vec,col,yy] of [[D.sa,RGB.b,yA],[D.sb,RGB.r,yB]]){
+        const q=pctAt(i,vec[i])/100;
+        x.fillStyle=rgba(col,(.10+.80*q)*fade);
+        x.fillRect(PAD+i*cw+.6,yy,cw-1.2,ch);
+      }
+    }
+  }
+  if(merge<=0){
+    x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#4e4e58';
+    x.fillText(`BLUE CORNER · ${M.cols.length} DIMS`,PAD,yA-8);
+    x.fillText(`RED CORNER · ${M.cols.length} DIMS`,PAD,yB-8);
+    x.fillText('CELL = PERCENTILE RANK ACROSS 8,880 CAREER STATES',PAD,H-14);
+  }
+}
+
+/* 02 — the standardised difference */
+function drawDelta(x,W,H,D,pr){
+  const L=wellRows(H);
+  const N=M.cols.length, cw=(W-PAD*2)/N, mid=L.dmid, ch=L.dh;
+  const shown=Math.round(ease(pr)*N);
+  x.strokeStyle='#1c1c23'; x.beginPath();
+  x.moveTo(PAD,mid+ch/2+.5); x.lineTo(W-PAD,mid+ch/2+.5); x.stroke();
+  for(let i=0;i<shown;i++){
+    const sd=D.std[i], m=Math.min(1,Math.abs(sd)/2.2);
+    x.fillStyle=rgba(sd>=0?RGB.b:RGB.r,.10+.80*m);
+    x.fillRect(PAD+i*cw+.6,mid,cw-1.2,ch);
+  }
+  x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#4e4e58';
+  x.fillText('Δ = BLUE − RED, DIVIDED BY THE TRAINING SD OF EACH FEATURE',PAD,mid-10);
+  x.fillText('BLUE CELL = FAVOURS BLUE CORNER',PAD,H-14);
+}
+
+/* 03 — coefficients applied, and the running sum */
+function drawTerms(x,W,H,D,pr){
+  const N=M.cols.length, cw=(W-PAD*2)/N;
+  const base=Math.round(H*0.52), maxBar=Math.round(H*0.225);
+  const mx=Math.max(.05,...D.T.map(Math.abs)), shown=Math.round(ease(pr)*N);
+  x.strokeStyle='#26262e'; x.beginPath();
+  x.moveTo(PAD,base+.5); x.lineTo(W-PAD,base+.5); x.stroke();
+  for(let i=0;i<shown;i++){
+    const c=D.T[i], hgt=Math.abs(c)/mx*maxBar;
+    x.fillStyle=rgba(c>=0?RGB.b:RGB.r,.85);
+    x.fillRect(PAD+i*cw+.8,c>=0?base-hgt:base,cw-1.6,Math.max(1,hgt));
+  }
+  // cumulative Σ, swept in the order the model sums it — this line IS the phase
+  const sc=Math.min(46,maxBar/Math.max(.4,Math.abs(D.z0)));
+  let run=M.intercept+(D.prior||0), lx=PAD, ly=base-run*sc;
+  x.beginPath(); x.strokeStyle='rgba(255,255,255,.92)'; x.lineWidth=2;
+  x.lineJoin='round'; x.moveTo(lx,ly);
+  for(let i=0;i<shown;i++){ run+=D.T[i]; lx=PAD+(i+1)*cw; ly=base-run*sc; x.lineTo(lx,ly); }
+  x.stroke();
+  if(shown){
+    x.fillStyle='#fff'; x.beginPath(); x.arc(lx,ly,3,0,6.2832); x.fill();
+    x.font='10px ui-monospace,Menlo,monospace'; x.textAlign='right';
+    x.fillText(`Σ ${run>=0?'+':'−'}${Math.abs(run).toFixed(2)}`,Math.min(W-PAD,lx-8),ly-8);
+    x.textAlign='left';
+  }
+  // name the single term doing the most work, so the chart has an anchor
+  let bi=0; for(let i=1;i<D.T.length;i++) if(Math.abs(D.T[i])>Math.abs(D.T[bi])) bi=i;
+  if(shown>bi){
+    const bx=PAD+bi*cw+cw/2, up=D.T[bi]>=0;
+    x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#8e8e98';
+    x.textAlign=bx>W*0.66?'right':'left';
+    x.fillText((FEATNAME[M.cols[bi]]||M.cols[bi]),bx+(bx>W*0.66?-6:6),
+               up?base-Math.abs(D.T[bi])/mx*maxBar-8:base+Math.abs(D.T[bi])/mx*maxBar+14);
+    x.textAlign='left';
+  }
+  x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#4e4e58';
+  x.fillText('BAR = coef × standardised Δ   ·   WHITE = RUNNING Σ',PAD,26);
+  x.fillText(`${M.cols.length} TERMS SUMMED IN COLUMN ORDER`,PAD,H-14);
+  return run;
+}
+
+/* 04 — the logistic link, with the sample drawn onto it */
+const ZLO=-5, ZHI=5;
+const zx=(z,W)=>PAD+(Math.max(ZLO,Math.min(ZHI,z))-ZLO)/(ZHI-ZLO)*(W-PAD*2);
+const py=(p,H)=>34+(1-p)*(H-118);
+function drawLink(x,W,H,D){
+  const yb=py(0,H), yt=py(1,H);
+  x.strokeStyle='#141419'; x.lineWidth=1;
+  for(const pv of [0,.25,.5,.75,1]){
+    const y=Math.round(py(pv,H))+.5;
+    x.beginPath(); x.moveTo(PAD,y); x.lineTo(W-PAD,y); x.stroke();
+  }
+  x.beginPath(); x.strokeStyle='#2a2a33'; x.setLineDash([2,4]);
+  x.moveTo(Math.round(zx(0,W))+.5,yt); x.lineTo(Math.round(zx(0,W))+.5,yb); x.stroke();
+  x.setLineDash([]);
+  x.beginPath(); x.strokeStyle=rgba(RGB.g,.9); x.lineWidth=1.8;
+  for(let i=0;i<=120;i++){
+    const z=ZLO+(ZHI-ZLO)*i/120, X=zx(z,W), Y=py(sigmoid(z),H);
+    i?x.lineTo(X,Y):x.moveTo(X,Y);
+  }
+  x.stroke();
+  x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#4e4e58';
+  x.fillText('P = 1',PAD+3,yt-5); x.fillText('P = 0',PAD+3,yb+12);
+  x.fillText('LOG-ODDS  −5',PAD,H-13);
+  x.textAlign='right';
+  x.fillText('+5',W-PAD,H-13);
+  x.fillStyle=rgba(RGB.b,.85); x.fillText('ROLLOUTS RETURNING BLUE ▲',W-PAD,yt+18);
+  x.fillStyle=rgba(RGB.r,.85); x.fillText('ROLLOUTS RETURNING RED ▼',W-PAD,yb-10);
+  x.textAlign='left'; x.fillStyle='#4e4e58';
+  x.fillText('σ(z) = 1 / (1 + e⁻ᶻ)',zx(-4.1,W),py(.88,H));   // upper-left is the empty quadrant
+}
+// the payoff: the Monte Carlo estimate landing on the analytic posterior.
+// Two numbers that were computed by different routes, printed side by side —
+// if they disagree, the tool is broken, and you can see that they don't.
+function settle(x,W,H,D){
+  const a=SIM.aWins, n=a+SIM.bWins, emp=n?a/n:0, d=Math.abs(emp-D.p);
+  const bw=286, bh=44, bx=W-PAD-bw, by=py(.5,H)-bh/2;
+  x.fillStyle='rgba(8,8,11,.92)'; x.fillRect(bx,by,bw,bh);
+  x.strokeStyle='#26262e'; x.lineWidth=1; x.strokeRect(bx+.5,by+.5,bw-1,bh-1);
+  x.font='9px ui-monospace,Menlo,monospace'; x.fillStyle='#5c5c66';
+  x.fillText(`${n.toLocaleString()} DRAWS   EMPIRICAL p̂    UNPERTURBED P    SHRINKAGE`,bx+12,by+16);
+  x.font='13px Anton'; x.fillStyle=rgba(RGB.b,1); x.fillText(String(a),bx+12,by+34);
+  x.fillStyle='#e6e6e4'; x.fillText(emp.toFixed(3),bx+112,by+34);
+  x.fillText(D.p.toFixed(3),bx+188,by+34);
+  x.fillStyle='#8e8e98'; x.fillText(d.toFixed(3),bx+250,by+34);
+}
+function plotDraw(ax,W,H,j){        // x = this rollout's log-odds, y = what it returned
+  const X=zx(j.z,W), t=py(1,H), b=py(0,H);
+  const Y=j.aWins ? t+5+Math.random()*22 : b-5-Math.random()*22;   // jittered to show density
+  ax.fillStyle=rgba(j.aWins?RGB.bh:RGB.rh,.5);
+  ax.beginPath(); ax.arc(X,Y,1.4,0,6.2832); ax.fill();
+  const hb=Math.max(0,Math.min(59,Math.floor((Math.max(ZLO,Math.min(ZHI,j.z))-ZLO)/(ZHI-ZLO)*60)));
+  SIM.hist[hb]++;
+}
+function drawHist(x,W,H){
+  const y0=H-26, mx=Math.max(1,...SIM.hist), bw=(W-PAD*2)/60;
+  for(let i=0;i<60;i++){
+    if(!SIM.hist[i]) continue;
+    const hgt=SIM.hist[i]/mx*20;
+    x.fillStyle=rgba(RGB.g,.5);
+    x.fillRect(PAD+i*bw+.4,y0-hgt,bw-.8,hgt);
+  }
+}
+function crosshair(x,W,H,D,solid){
+  const X=zx(D.z0,W), Y=py(D.p,H);
+  x.strokeStyle=solid?'rgba(255,255,255,.85)':'rgba(255,255,255,.4)'; x.lineWidth=1;
+  x.setLineDash(solid?[]:[2,3]);
+  x.beginPath(); x.moveTo(X,py(0,H)); x.lineTo(X,py(1,H));
+  x.moveTo(PAD,Y); x.lineTo(W-PAD,Y); x.stroke(); x.setLineDash([]);
+  x.beginPath(); x.strokeStyle='#fff'; x.lineWidth=1.6; x.arc(X,Y,4.5,0,6.2832); x.stroke();
+}
+
+function simFrame(ts){
+  const x=SIM.x, D=SIM.D; if(!x||!D) return;
+  const W=SIM.w, H=SIM.h, el=ts-SIM.t0;
+  x.clearRect(0,0,W,H);
+  grid(x,W,H);
+
+  if(el<PEND[0]){
+    const pr=el/PHASES[0][1];
+    label('01 / 04',PHASES[0][0],`${Math.round(ease(pr)*M.cols.length)} / ${M.cols.length} DIMS`,el/PEND[4]);
+    drawVectors(x,W,H,D,pr,0);
+  } else if(el<PEND[1]){
+    const pr=(el-PEND[0])/PHASES[1][1];
+    label('02 / 04',PHASES[1][0],'Δ STANDARDISED',el/PEND[4]);
+    drawVectors(x,W,H,D,1,Math.min(1,pr*2));
+    if(pr>0.35) drawDelta(x,W,H,D,(pr-0.35)/0.65);
+  } else if(el<PEND[2]){
+    const pr=(el-PEND[1])/PHASES[2][1];
+    const run=drawTerms(x,W,H,D,pr);
+    label('03 / 04',PHASES[2][0],`Σ = ${run>=0?'+':'−'}${Math.abs(run).toFixed(2)} LOG-ODDS`,el/PEND[4]);
+  } else {
+    const pr=Math.min(1,(el-PEND[2])/PHASES[3][1]);
+    drawLink(x,W,H,D);
+    const want=Math.min(N_JURORS,Math.round(pr*N_JURORS));
+    while(SIM.taken<want){ plotDraw(SIM.ax,W,H,D.jurors[SIM.taken]); SIM.taken++; }
+    x.drawImage(SIM.acc,0,0,W,H);
+    drawHist(x,W,H);
+    crosshair(x,W,H,D,el>=PEND[3]);
+    if(el>=PEND[3]) settle(x,W,H,D);
+    const a=SIM.aWins, t=SIM.taken;
+    // The spread is declared, so it is stated where it is being applied — the
+    // same rule the weight prior lives by. A reader can check the arithmetic.
+    label('04 / 04',PHASES[3][0],
+      t>=N_JURORS?`p̂ = ${(a/N_JURORS).toFixed(3)} · 1,000 DRAWS`
+                 :`SPREAD |Δ|×${NOISE_GAIN} + ${NOISE_FLOOR} · DECLARED, NOT FITTED`,
+      Math.min(1,el/PEND[4]));
+  }
+}
+
+function pumpCounts(){
+  const D=SIM.D;
+  while(SIM.counted<SIM.taken){
+    const j=D.jurors[SIM.counted++]; j.aWins?SIM.aWins++:SIM.bWins++;
+    if(SIM.counted-SIM.streamed>=14||SIM.counted===N_JURORS){
+      SIM.streamed=SIM.counted;
+      const row=document.createElement('div');
+      row.className='row '+(j.aWins?'aw':'bw')+(j.method!=='DEC'?' fin':'');
+      row.innerHTML=`<span class="id">RUN ${String(SIM.counted).padStart(4,'0')}</span>`+
+                    `<span class="who">${j.win}</span>`+
+                    `<span class="m">${j.method}${j.method==='DEC'?'':' · R'+j.round+' '+j.time}</span>`;
+      $('stream').prepend(row);
+      if($('stream').children.length>16) $('stream').lastChild.remove();
+    }
+  }
+  const t=SIM.aWins+SIM.bWins;
+  $('ca').textContent=SIM.aWins; $('cb').textContent=SIM.bWins;
+  $('ret').textContent=`${t.toLocaleString()} / ${N_JURORS.toLocaleString()} ROLLOUTS`;
+  // scaled against all 1,000 rather than against the draws so far, so the bar
+  // grows into the track as the run proceeds. The 1px inset on each side leaves
+  // the 2px surface gap that keeps the two masses from reading as one bar.
+  if(SPA){
+    SPA.style.width=`calc(${(SIM.aWins/N_JURORS*100).toFixed(2)}% - 1px)`;
+    SPB.style.width=`calc(${(SIM.bWins/N_JURORS*100).toFixed(2)}% - 1px)`;
+  }
+}
+
+function simTick(ts){
+  simFrame(ts); pumpCounts();
+  const el=ts-SIM.t0;
+  if(el>=PEND[3]&&!SIM.fin){ SIM.fin=true; $('status').textContent='CONVERGED.'; }
+  if(el<PEND[4]){ SIM.raf=requestAnimationFrame(simTick); }
+  else { SIM.raf=0; SIM.done&&SIM.done(); SIM.done=null; }
+}
+function simRun(D,onDone){
+  simSize();
+  SIM.D=D; SIM.taken=0; SIM.counted=0; SIM.streamed=0; SIM.aWins=0; SIM.bWins=0;
+  SIM.fin=false; SIM.done=onDone; SIM.hist=new Array(60).fill(0);
+  SIM.ax.clearRect(0,0,SIM.w,SIM.h);
+  SIM.t0=performance.now();
+  if(SIM.raf) cancelAnimationFrame(SIM.raf);
+  SIM.raf=requestAnimationFrame(simTick);
+}
+addEventListener('resize',()=>{ if(SIM.x&&!SIM.raf&&SIM.D){ simSize(); simFrame(SIM.t0+PEND[4]); } });
+
+/* ---------- attribution -----------------------------------------------------
+   coef x scaled feature, per term. Not an invented attribute rating — these
+   are the numbers the model actually summed to get the posterior, which is
+   the whole difference between this and a video game stat screen. */
+var FEATNAME={
+  ew_f_slpm:'STRIKE VOLUME · RECENT',       ca_f_slpm:'STRIKE VOLUME · CAREER',
+  ew_f_sapm:'STRIKES ABSORBED · RECENT',    ca_f_sapm:'STRIKES ABSORBED · CAREER',
+  ew_f_sacc:'STRIKE ACCURACY · RECENT',     ca_f_sacc:'STRIKE ACCURACY · CAREER',
+  ew_f_sdef:'STRIKING DEFENCE · RECENT',    ca_f_sdef:'STRIKING DEFENCE · CAREER',
+  ew_f_td15:'TAKEDOWN RATE · RECENT',       ca_f_td15:'TAKEDOWN RATE · CAREER',
+  ew_f_tddef:'TAKEDOWN DEFENCE · RECENT',   ca_f_tddef:'TAKEDOWN DEFENCE · CAREER',
+  ew_f_ctrl:'CONTROL TIME · RECENT',        ca_f_ctrl:'CONTROL TIME · CAREER',
+  ew_f_kd15:'KNOCKDOWN RATE · RECENT',      ca_f_kd15:'KNOCKDOWN RATE · CAREER',
+  ew_f_kdabs:'KNOCKDOWNS ABSORBED · RECENT',ca_f_kdabs:'KNOCKDOWNS ABSORBED · CAREER',
+  ew_f_sub15:'SUB ATTEMPTS · RECENT',       ca_f_sub15:'SUB ATTEMPTS · CAREER',
+  n:'UFC EXPERIENCE', winrate:'CAREER WIN RATE', form3:'FORM · LAST 3',
+  form5:'FORM · LAST 5', layoff:'LAYOFF', career_len:'CAREER LENGTH',
+  ko_abs3:'RECENT KO LOSSES', h:'HEIGHT', r:'REACH', age:'AGE',
+  age_sq:'AGE CURVE', sw:'SOUTHPAW STANCE', elo:'ELO RATING', wt:'LISTED WEIGHT'
+};
+function renderAttr(A,B,D){
+  const v=D.base, prior=D.prior, p=D.p, terms=[];
+  let z=M.intercept+(prior||0), nz=0;
+  for(let i=0;i<D.T.length;i++){
+    const c=D.T[i];
+    if(Math.abs(c)>=0.005){ nz++; terms.push({k:M.cols[i],c,imp:v[i]==null}); }
+  }
+  if(prior){ nz++; terms.push({k:'__prior',c:prior,imp:false}); }
+  for(let i=0;i<D.T.length;i++) z+=D.T[i];
+  terms.sort((a,b)=>Math.abs(b.c)-Math.abs(a.c));
+  const top=terms.slice(0,8), max=Math.max(0.05,...top.map(t=>Math.abs(t.c)));
+  $('attrows').innerHTML=top.map(t=>{
+    const side=t.c>0?'a':'b', w=Math.min(50,Math.abs(t.c)/max*50);
+    const nm=t.k==='__prior'?'CROSS-DIVISION MASS PRIOR':(FEATNAME[t.k]||t.k);
+    return `<div class="ar p${side}"><span class="an">${nm}${t.imp?' · IMPUTED':''}</span>`+
+      `<span class="at"><u></u><i class="${side}" style="${side==='a'?'right':'left'}:50%;`+
+      `width:${w.toFixed(1)}%"></i></span>`+
+      `<span class="av">${t.c>0?'+':'−'}${Math.abs(t.c).toFixed(2)}</span></div>`;
+  }).join('');
+  $('attrsub').textContent=`TOP 8 OF ${nz} NON-ZERO TERMS · `+
+    `Σ INCL. INTERCEPT = ${z>=0?'+':'−'}${Math.abs(z).toFixed(2)} LOG-ODDS → P = ${p.toFixed(3)}`;
+  $('attrl').innerHTML=`◀ TOWARD <b>${A.toUpperCase()}</b>`;
+  $('attrr').innerHTML=`TOWARD <b>${B.toUpperCase()}</b> ▶`;
+}
+
+/* ---------- run ---------- */
+$('go').onclick=()=>{
+  // canonical names from here down, so the model, the plates, the verdict and
+  // the exported card all print the index's spelling rather than the typing
+  const A=resolve($('ia').value), B=resolve($('ib').value);
+  if(!A||!B) return;
+  const D=empanel(A,B,+$('sa').value,+$('sb').value);
+  // everything the pipeline draws is derived here, once, from the same vectors
+  // the model consumed — the animation cannot show a number the model did not use
+  D.sa=stateVec(D.va); D.sb=stateVec(D.vb); D.T=D.terms;
+  D.std=D.base.map((v,i)=>(((v==null?M.impute[i]:v)-M.mean[i])/M.scale[i]));
+
+  $('empanel').style.display='none'; $('stage').classList.add('on');
+  $('verdict').classList.remove('on');
+  $('na').innerHTML=`${A}<i>${D.va.year}${D.va.isPrime?' · PRIME':''}</i>`;
+  $('nb').innerHTML=`${B}<i>${D.vb.year}${D.vb.isPrime?' · PRIME':''}</i>`;
+  $('stream').innerHTML=''; $('status').textContent='RUNNING…';
+  $('ca').textContent='0'; $('cb').textContent='0';
+  $('stage').classList.remove('settled');
+  SPA.style.width='0'; SPB.style.width='0';
+
+  // Say out loud when the model is outside its data. A hidden fudge factor is
+  // how a tool loses people; a stated one is how it keeps them.
+  const gw=$('wgap'), gap=D.gap, mag=gap==null?0:Math.abs(gap);
+  gw.className='wgap on'+(mag<=FREE_LBS?' same':'');
+  if(gap==null) gw.textContent='LISTED WEIGHT UNAVAILABLE — NO PHYSICAL PRIOR APPLIED.';
+  else if(mag<=FREE_LBS)
+    gw.innerHTML=`${D.da.toUpperCase()} vs ${D.db.toUpperCase()} · <b>${mag} LB</b> GAP — inside one division, `+
+      `inside the training distribution. No prior applied; the record carries it.`;
+  else
+    gw.innerHTML=`<b>OUT OF DISTRIBUTION — ${mag} LB GAP.</b> ${D.da.toUpperCase()} vs ${D.db.toUpperCase()}.<br>`+
+      `4 of 6,428 training fights exceed an 80 lb gap, so the fitted weight coefficient cannot `+
+      `extrapolate here. A declared physical prior of <b>${D.prior>0?'+':''}${D.prior.toFixed(2)} log-odds</b> `+
+      `is added to the heavier fighter. Entertainment, not analysis.`;
+
+  simRun(D,()=>render(A,B,D));
+};
+
+function render(A,B,D){
+  const jurors=D.jurors, a=SIM.aWins, b=SIM.bWins, p=D.p;
+  $('status').textContent='CONVERGED.';
+  const maj=a>=b?A:B, majN=Math.max(a,b), minr=a>=b?B:A, minN=Math.min(a,b);
+  // One threshold drives every label, so the stamp can never contradict the
+  // posterior cell. 0.70 is the band the model is measurably 76.8% accurate in.
+  const conf=Math.max(p,1-p);
+  const hung=conf<0.58, confident=conf>=0.70;
+  $('stamp').textContent=hung?'INDETERMINATE':(confident?'CONVERGED':'LOW SEPARATION');
+  $('stamp').className='stamp'+(hung?' hung':(confident?' conv':''));
+
+  $('vmaj').textContent=maj; $('vmaj').className=(maj===B?'r':'l');
+  $('vmajs').textContent=`${majN.toLocaleString()} OF ${N_JURORS.toLocaleString()} ROLLOUTS`;
+
+  const cnt={};
+  jurors.filter(j=>j.win===maj).forEach(j=>cnt[j.method]=(cnt[j.method]||0)+1);
+  const top=Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0]||['—',0];
+  $('vmeth').textContent=top[0]==='DEC'?'DECISION':top[0];
+  // Declared heuristic, not a fitted model — said on the cell itself, because
+  // this sits at the same visual weight as the validated posterior beside it.
+  $('vmeths').textContent=`${Math.round(top[1]/majN*100)}% OF OUTCOMES · DECLARED HEURISTIC, NOT FITTED`;
+
+  $('vconf').textContent=conf.toFixed(3);
+  $('vconf').className=confident?'r':'';
+  $('vconfs').textContent=confident?'UNPERTURBED · BAND ≥0.70 REALISED 76.8% ON 15.6% OF FIGHTS'
+    :(hung?'UNPERTURBED · DECLINED BAND — REALISED 52.0% ON 40% OF FIGHTS'
+          :'UNPERTURBED · BAND 0.58–0.70 · WEAK SEPARATION');
+
+  renderAttr(A,B,D);
+
+  const dis=jurors.filter(j=>j.win===minr);
+  // Drawn from the finishes so the quote has a picture in it — which makes it
+  // unrepresentative of a tail that is mostly decisions. Stated, not hidden.
+  const fin=dis.filter(j=>j.method!=='DEC');
+  const exFin=fin.length>0;
+  const ex=exFin?fin[Math.floor(Math.random()*fin.length)]:dis[0];
+  const exi=jurors.indexOf(ex)+1;
+  const H=entropy(conf);
+  $('dissent').className='dissent'+(minr===A?' la':'');
+  // The card's line, verbatim, because it is the one anyone reposts — plus the
+  // all-agreed case, which the card cannot currently say out loud.
+  $('dhead').textContent = minN===0
+    ? 'ALL 1,000 ROLLOUTS AGREED.'
+    : hung ? `${minN.toLocaleString()} ROLLOUTS WENT THE OTHER WAY.`
+           : `ONLY ${minN.toLocaleString()} OF 1,000 TERMINATED FOR ${minr.toUpperCase()}.`;
+  $('dtext').innerHTML=hung
+    ? `The two outcome masses overlap almost exactly — <b>${majN.toLocaleString()}</b> to <b>${minN.toLocaleString()}</b>, binary entropy <b>${H.toFixed(3)}</b> of a maximum 1.000. There is no separation here to find. A number quoted to three decimals on this fight is quoting noise.`
+    : confident
+    ? `<b>${minN.toLocaleString()}</b> of 1,000 rollouts still terminated for <b>${minr}</b>. This is as much separation as the model produces, and in this band it is wrong on roughly one fight in four.`
+    : `<b>${minN.toLocaleString()}</b> of 1,000 rollouts terminated for <b>${minr}</b>. Roughly ${Math.round(minN/10)} runs in 100 end the other way. A lean, not a call.`;
+  $('dquote').innerHTML=ex
+    ? `RUN ${String(exi).padStart(4,'0')}${exFin?' · DRAWN FROM THE RUNS THAT FINISHED':''} — <em>${ex.win} by ${ex.method==='DEC'?'decision':ex.method}${ex.method==='DEC'?'':', R'+ex.round+' '+ex.time}</em>`
+    : 'NO TAIL RECORDED. ALL 1,000 ROLLOUTS AGREED.';
+  const methods={}; jurors.forEach(j=>methods[j.method]=(methods[j.method]||0)+1);
+  LAST={A,B,a,b,maj,minr,majN,minN,hung,confident,conf,ex,exi,exFin,methods,
+        wt:{gap:D.gap,da:D.da,db:D.db,prior:D.prior,va:D.va,vb:D.vb}};
+  $('saved').textContent='';
+  $('verdict').classList.add('on');
+  // Contract the run before moving to the result. The stream has stopped, so it
+  // is now scrollback standing between you and the answer; collapsing it first
+  // and scrolling second means the target is not still shrinking underneath the
+  // scroll when it lands.
+  $('stage').classList.add('settled');
+  // Land on the tally rather than on the verdict. Scrolling to #verdict put the
+  // final split bar just above the fold — the one picture of the distribution,
+  // skipped past on the way to the words describing it. From here the arrival
+  // reads: the split, the stamp, the cells, the tail.
+  setTimeout(()=>{
+    const y=$('ca').getBoundingClientRect().top+window.scrollY-28;
+    window.scrollTo({top:y,behavior:CALM?'auto':'smooth'});
+  },CALM?0:300);
+}
+
+/* ---------- share card: 1080x1350 @2x, drawn on canvas ----------
+   No library. html2canvas would need a CDN, and a strict-offline single file
+   can't fetch one — so every pixel here is drawn by hand. */
+let LAST=null;                                    // last verdict, for the card
+
+function fit(ctx,text,family,max,size,min){       // shrink until it fits
+  let s=size;
+  do{ ctx.font=`${s}px ${family}`; if(ctx.measureText(text).width<=max) break; s-=2; }while(s>min);
+  return s;
+}
+function drawCard(){
+  const S=2, W=1080, H=1350;                      // logical size, 2x export
+  const c=document.createElement('canvas');
+  c.width=W*S; c.height=H*S;
+  const x=c.getContext('2d'); x.scale(S,S);
+  const R='#e01a22', BL='#2b7fff', INK='#f2f2f0', GREY='#75757e', M=64;
+  const {A,B,a,b,maj,minr,majN,minN,hung,confident,conf,ex,exi,exFin}=LAST;
+
+  x.fillStyle='#0a0a0c'; x.fillRect(0,0,W,H);
+  const gl=x.createRadialGradient(0,0,0,0,0,H*0.72);
+  gl.addColorStop(0,'rgba(43,127,255,0.16)'); gl.addColorStop(1,'rgba(43,127,255,0)');
+  x.fillStyle=gl; x.fillRect(0,0,W,H);
+  const gr=x.createRadialGradient(W,0,0,W,0,H*0.72);
+  gr.addColorStop(0,'rgba(224,26,34,0.16)'); gr.addColorStop(1,'rgba(224,26,34,0)');
+  x.fillStyle=gr; x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(224,26,34,0.30)'; x.lineWidth=1;
+  x.strokeRect(18.5,18.5,W-37,H-37);
+  x.textBaseline='alphabetic';
+
+  // The lockup. The glyph is read straight out of the inline <symbol> rather
+  // than restated here, so the card and the page cannot drift apart — there is
+  // exactly one description of the mark in the file.
+  const drawGlyph=(gx,gy,size)=>{
+    const sym=document.getElementById('glyph');
+    x.save();
+    x.translate(gx,gy); x.scale(size/100,size/100);
+    x.strokeStyle=INK; x.lineWidth=5; x.lineJoin='miter';
+    x.stroke(new Path2D(sym.querySelector('path[stroke]').getAttribute('d')));
+    x.fillStyle=INK;
+    x.fill(new Path2D(sym.querySelector('path[fill="currentColor"]').getAttribute('d')));
+    sym.querySelectorAll('rect').forEach(r=>x.fillRect(
+      +r.getAttribute('x'),+r.getAttribute('y'),
+      +r.getAttribute('width'),+r.getAttribute('height')));
+    x.restore();
+  };
+  // Anton ships upright only, so the oblique is a 9° shear — the same one the
+  // page applies in CSS. measureText must still run under the font it is
+  // measuring; measuring these while Barlow was active is what collided them
+  // before.
+  const SHEAR=-Math.tan(9*Math.PI/180);
+  const mark=(px,y,tag)=>{
+    const g=px*1.32;
+    drawGlyph(M,y-g*0.84,g);
+    const tx=M+g+px*0.40;
+    x.font=`${px}px Anton`;
+    const w=x.measureText('FIGHT SIM').width;
+    x.save();
+    x.translate(tx,y); x.transform(1,0,SHEAR,1,0,0);
+    x.fillStyle=INK; x.fillText('FIGHT SIM',0,0);
+    x.restore();
+    if(tag){ x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText(tag,tx+w+22,y-1); }
+  };
+  mark(34,96,'1,000 MONTE CARLO ROLLOUTS');
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,126); x.lineTo(W-M,126); x.stroke();
+
+  // matchup. The season tag rides beside each name — without it a shared
+  // prime-vs-prime card is ambiguous about which versions actually fought.
+  // Season tags are right-aligned to the margin rather than trailing the name —
+  // an inline tag collides the moment a name runs long.
+  const wtc=LAST.wt||{}, TAGW=150;
+  const tagOf=v=>v?`${v.year}${v.isPrime?' · PRIME':''}`:'';
+  let s=fit(x,A.toUpperCase(),'Anton',W-M*2-TAGW,54,24);
+  x.fillStyle=BL; x.font=`${s}px Anton`; x.fillText(A.toUpperCase(),M,190);
+  x.font='600 20px Barlow'; x.fillStyle=GREY; x.fillText('VS',M,246);
+  const vsw=x.measureText('VS').width;
+  s=fit(x,B.toUpperCase(),'Anton',W-M*2-vsw-18-TAGW,54,24);
+  x.fillStyle=R; x.font=`${s}px Anton`; x.fillText(B.toUpperCase(),M+vsw+18,250);
+  x.font='600 15px Barlow'; x.fillStyle=GREY; x.textAlign='right';
+  x.fillText(tagOf(wtc.va),W-M,188); x.fillText(tagOf(wtc.vb),W-M,248);
+  x.textAlign='left';
+
+  // the split — hero. Numbers anchor the outer edges; the bar carries the ratio,
+  // so no separator glyph is needed between them.
+  x.font='112px Anton'; x.fillStyle=BL; x.fillText(String(a),M,372);
+  x.fillStyle=R; x.textAlign='right'; x.fillText(String(b),W-M,372); x.textAlign='left';
+  const bw=W-M*2, pa=a/(a+b);
+  x.fillStyle='#141418'; x.fillRect(M,398,bw,30);
+  x.fillStyle=BL; x.fillRect(M,398,bw*pa,30);
+  x.fillStyle=R; x.fillRect(M+bw*pa,398,bw*(1-pa),30);
+  x.font='600 15px Barlow'; x.fillStyle=GREY;
+  x.fillText(A.toUpperCase(),M,452); x.textAlign='right';
+  x.fillText(B.toUpperCase(),W-M,452); x.textAlign='left';
+
+  // division line — and the catchweight disclosure rides along on the shared
+  // image, so the joke can never circulate without its caveat attached
+  const wt=LAST.wt||{}, mag=wt.gap==null?0:Math.abs(wt.gap);
+  x.font='600 15px Barlow';
+  if(wt.gap!=null && mag>20){
+    x.fillStyle=R;
+    x.fillText(`OUT OF DISTRIBUTION · ${mag} LB GAP · ${wt.da.toUpperCase()} vs ${wt.db.toUpperCase()}`,M,478);
+    x.fillStyle=GREY;
+    x.fillText(`4 OF 6,428 TRAINING FIGHTS EXCEED 80 LB — DECLARED PRIOR `
+    +`${wt.prior>0?'+':''}${(wt.prior||0).toFixed(2)} LOG-ODDS APPLIED. NOT ANALYSIS.`,M,500);
+  } else if(wt.gap!=null){
+    x.fillStyle=GREY;
+    x.fillText(`${wt.da.toUpperCase()} vs ${wt.db.toUpperCase()} · ${mag} LB GAP`,M,478);
+  }
+
+  // stamp
+  const label=hung?'INDETERMINATE':(confident?'CONVERGED':'LOW SEPARATION');
+  x.save(); x.translate(M,516); x.rotate(-0.028);
+  x.font='24px Anton'; const lw=x.measureText(label).width;
+  x.strokeStyle=R; x.lineWidth=3;
+  if(hung){ x.fillStyle=R; x.fillRect(0,0,lw+40,50); x.fillStyle='#fff'; }
+  else { x.strokeRect(1.5,1.5,lw+37,47); x.fillStyle=R; }
+  x.fillText(label,20,34); x.restore();
+
+  // how it ends — real information, and it fills the frame
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,592); x.lineTo(W-M,592); x.stroke();
+  x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText('T E R M I N A T I O N',M,632);
+  x.font='600 14px Barlow'; x.fillStyle='#5a5a64';
+  x.fillText('DECLARED HEURISTIC — NOT A FITTED METHOD MODEL · SCHEDULED 3 ROUNDS',M+230,632);
+  const order=[['DECISION',LAST.methods.DEC||0],['KO / TKO',LAST.methods['KO/TKO']||0],
+               ['SUBMISSION',LAST.methods.SUB||0]].sort((p,q)=>q[1]-p[1]);
+  order.forEach(([name,n],i)=>{
+    const y=670+i*44, pct=n/10;
+    x.font='600 20px Barlow'; x.fillStyle='#b8b8be'; x.fillText(name,M,y+16);
+    const tx=M+190, tw=W-M-70-tx;
+    x.fillStyle='#141418'; x.fillRect(tx,y+2,tw,16);
+    x.fillStyle=i===0?'#e6e6e4':'#43434c'; x.fillRect(tx,y+2,tw*(n/1000),16);
+    x.font='22px Anton'; x.fillStyle=i===0?INK:GREY; x.textAlign='right';
+    x.fillText(Math.round(pct)+'%',W-M,y+18); x.textAlign='left';
+  });
+
+  // the dissent — the reason anyone reposts this
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,822); x.lineTo(W-M,822); x.stroke();
+  const MC=(minr===A)?BL:R;
+  x.font='600 15px Barlow'; x.fillStyle=MC; x.fillText('T H E   T A I L',M,862);
+  const l1=hung?`${minN} ROLLOUTS WENT`:`ONLY ${minN} OF 1,000`;
+  const l2=hung?'THE OTHER WAY.':`TERMINATED FOR ${minr.toUpperCase()}.`;
+  s=Math.min(fit(x,l1,'Anton',W-M*2,56,24),fit(x,l2,'Anton',W-M*2,56,24));
+  x.fillStyle=INK; x.font=`${s}px Anton`;
+  x.fillText(l1,M,928); x.fillText(l2,M,928+s+6);
+
+  // the juror line
+  const qy=928+s+40;
+  x.fillStyle='#101014'; x.fillRect(M,qy,W-M*2,78);
+  x.fillStyle=MC; x.fillRect(M,qy,4,78);
+  x.font='600 15px Barlow'; x.fillStyle=GREY;
+  x.fillText(`RUN ${String(exi).padStart(4,'0')}${exFin?' · DRAWN FROM THE RUNS THAT FINISHED':''}`,M+26,qy+30);
+  const q=ex?`${ex.win} by ${ex.method==='DEC'?'decision':ex.method}${ex.method==='DEC'?'':', R'+ex.round+' '+ex.time}`:'—';
+  const qs=fit(x,q,'Anton',W-M*2-52,30,14);
+  x.fillStyle=INK; x.font=`${qs}px Anton`; x.fillText(q,M+26,qy+62);
+
+  // the thesis
+  const ty=qy+134;
+  x.font='600 27px Barlow'; x.fillStyle='#b8b8be';
+  x.fillText(hung?'No separation exists in this matchup.'
+    :(confident?'Maximum separation the model produces.':'A lean. Not a call.'),M,ty);
+  x.fillStyle=GREY;
+  x.fillText(`Unperturbed posterior ${conf.toFixed(3)} · ${majN}–${minN} under the declared `
+    +`spread · entropy ${entropy(conf).toFixed(3)}.`,M,ty+34);
+
+  // footer
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();
+  mark(22,H-70,HOME.toUpperCase());
+  x.font='600 14px Barlow'; x.fillStyle=GREY;
+  x.fillText('UFCSTATS VIA THE GRECO1899 MIRROR · NOT AFFILIATED WITH UFC, ZUFFA OR TKO',M,H-46);
+  x.textAlign='right';
+  x.fillText(`ROLLING-ORIGIN CV · BRIER 0.230 · ECE 1.1 PTS · N=3,404 FIGHTS`,W-M,H-70);
+  x.fillText('NOT A PREDICTION. A DISTRIBUTION.',W-M,H-46);
+  x.textAlign='left';
+
+  // grain, so it reads as print rather than a screenshot. Coarse 2x2 blocks:
+  // per-pixel noise is incompressible and blew the file up to 9 MB.
+  const n=x.getImageData(0,0,c.width,c.height), d=n.data, cw=c.width;
+  for(let py=0;py<c.height;py+=2) for(let px=0;px<cw;px+=2){
+    const v=(Math.random()-0.5)*11;
+    for(let dy=0;dy<2;dy++) for(let dx=0;dx<2;dx++){
+      const i=((py+dy)*cw+(px+dx))*4;
+      d[i]+=v; d[i+1]+=v; d[i+2]+=v;
+    }
+  }
+  x.putImageData(n,0,0);
+  return c;
+}
+function cardName(ext){
+  const k=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return `fightsim-${k(LAST.A)}-vs-${k(LAST.B)}.${ext}`;
+}
+// JPEG for the download: grain is incompressible, so PNG lands at ~9 MB while
+// JPEG holds the same card under 1 MB — and every platform re-encodes anyway.
+$('save').onclick=async()=>{
+  if(!LAST) return;
+  await document.fonts.ready;                     // canvas silently falls back otherwise
+  drawCard().toBlob(bl=>{
+    const u=URL.createObjectURL(bl), a=document.createElement('a');
+    a.href=u; a.download=cardName('jpg'); a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+    $('saved').textContent=`SAVED · 2160×2700 · ${(bl.size/1024|0)} KB`;
+  },'image/jpeg',0.93);
+};
+// Clipboard only accepts PNG, so this path has to pay the size.
+$('copy').onclick=async()=>{
+  if(!LAST) return;
+  await document.fonts.ready;
+  try{
+    const bl=await new Promise(r=>drawCard().toBlob(r,'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);
+    $('saved').textContent='COPIED TO CLIPBOARD';
+  }catch(e){ $('saved').textContent='CLIPBOARD BLOCKED — USE SAVE'; }
+};
+
+/* ---------- EVENT MODE ------------------------------------------------------
+   A single matchup is what every other tool in this category produces. What
+   none of them produce is a model that commits to a whole card in public and
+   marks the fights it will not call.
+
+   The threshold is not a design flourish. Across the 3,404 held-out fights,
+   everything under 0.58 realised 52.0% — and under 0.55 it realised exactly
+   50.0%. The refusals are the measured part.
+
+   Versions are LATEST here, not prime: an upcoming card is fought by whoever
+   these people are now. The single-matchup screen defaults to prime because it
+   is a fantasy tool; this one is not. */
+const EV={rows:[],name:'',dec:0};
+const latestIdx=n=>FI[n].v.length-1;
+
+function parseBouts(text){
+  const out=[];
+  for(const raw of text.split('\n')){
+    const line=raw.trim();
+    if(!line) continue;
+    const m=line.split(/\s+(?:vs\.?|v\.?|versus|—|–)\s+/i);
+    if(m.length!==2){ out.push({raw:line,err:'NOT A vs B'}); continue; }
+    const a=resolve(m[0]), b=resolve(m[1]);
+    if(!a){ out.push({raw:line,err:`NOT IN THE INDEX: ${m[0].trim()}`}); continue; }
+    if(!b){ out.push({raw:line,err:`NOT IN THE INDEX: ${m[1].trim()}`}); continue; }
+    if(a===b){ out.push({raw:line,err:'SAME FIGHTER BOTH CORNERS'}); continue; }
+    out.push({raw:line,a,b});
+  }
+  return out;
+}
+
+function runEvent(){
+  const parsed=parseBouts($('ecard').value);
+  const bad=parsed.filter(p=>p.err), good=parsed.filter(p=>!p.err);
+  const w=$('ewarn');
+  if(bad.length){
+    w.classList.add('on');
+    w.innerHTML=bad.map(p=>`DECLINED — ${p.err}<br><span style="color:var(--grey)">${
+      p.raw.replace(/</g,'&lt;')}</span>`).join('<br>');
+  } else w.classList.remove('on');
+  if(!good.length){ $('eout').classList.remove('on'); $('eacts').classList.remove('on'); return; }
+
+  EV.name=$('ename').value.trim()||'UNTITLED CARD';
+  EV.rows=good.map(p=>{
+    const D=empanel(p.a,p.b,latestIdx(p.a),latestIdx(p.b));
+    let aw=0; for(const j of D.jurors) if(j.aWins) aw++;
+    const conf=Math.max(D.p,1-D.p);
+    return {a:p.a,b:p.b,p:D.p,aw,bw:N_JURORS-aw,conf,
+            declined:conf<0.58, lean:D.p>=0.5?p.a:p.b,
+            prior:D.prior, gap:D.gap};
+  });
+  EV.dec=EV.rows.filter(r=>r.declined).length;
+
+  $('eout').innerHTML=
+    `<div class="ehead"><span>${EV.rows.length} BOUTS · LATEST CAREER STATE</span>`
+    +`<span>REFUSES ${EV.dec} OF ${EV.rows.length}</span></div>`
+    +EV.rows.map(r=>{
+      const pa=Math.round(r.p*100);
+      return `<div class="erow${r.declined?' dec':''}">`
+        +`<span class="ea">${r.a}</span>`
+        +`<span class="ebar"><i style="width:${pa}%"></i><u style="width:${100-pa}%"></u></span>`
+        +`<span class="eb">${r.b}</span>`
+        +`<span class="ep">${r.declined?'REFUSED':(r.conf).toFixed(2)+' '+(r.p>=.5?'←':'→')}</span></div>`;
+    }).join('');
+  $('eout').classList.add('on'); $('eacts').classList.add('on'); $('esaved').textContent='';
+}
+
+/* The scorecard. Height is derived from the bout count, so a 5-fight prelim
+   card and a 13-fight PPV both come out correctly proportioned. */
+function drawEvent(){
+  const S=2, W=1080, rows=EV.rows, RH=64, top=250, bot=300;
+  const H=top+rows.length*RH+bot;
+  const c=document.createElement('canvas'); c.width=W*S; c.height=H*S;
+  const x=c.getContext('2d'); x.scale(S,S);
+  const R='#e01a22', BL='#2b7fff', INK='#f2f2f0', GREY='#75757e', DIM='#43434c', M=64;
+
+  x.fillStyle='#0a0a0c'; x.fillRect(0,0,W,H);
+  const gl=x.createRadialGradient(0,0,0,0,0,H*0.6);
+  gl.addColorStop(0,'rgba(43,127,255,0.14)'); gl.addColorStop(1,'rgba(43,127,255,0)');
+  x.fillStyle=gl; x.fillRect(0,0,W,H);
+  const gr=x.createRadialGradient(W,H,0,W,H,H*0.6);
+  gr.addColorStop(0,'rgba(224,26,34,0.13)'); gr.addColorStop(1,'rgba(224,26,34,0)');
+  x.fillStyle=gr; x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(224,26,34,0.30)'; x.lineWidth=1; x.strokeRect(18.5,18.5,W-37,H-37);
+  x.textBaseline='alphabetic';
+
+  const SHEAR=-Math.tan(9*Math.PI/180);
+  const glyph=(gx,gy,size)=>{
+    const sym=document.getElementById('glyph');
+    x.save(); x.translate(gx,gy); x.scale(size/100,size/100);
+    x.strokeStyle=INK; x.lineWidth=5; x.lineJoin='miter';
+    x.stroke(new Path2D(sym.querySelector('path[stroke]').getAttribute('d')));
+    x.fillStyle=INK; x.fill(new Path2D(sym.querySelector('path[fill="currentColor"]').getAttribute('d')));
+    sym.querySelectorAll('rect').forEach(r=>x.fillRect(+r.getAttribute('x'),+r.getAttribute('y'),
+      +r.getAttribute('width'),+r.getAttribute('height')));
+    x.restore();
+  };
+  const mark=(px,y,tag)=>{
+    const g=px*1.32; glyph(M,y-g*0.84,g);
+    const tx=M+g+px*0.40; x.font=`${px}px Anton`;
+    const w=x.measureText('FIGHT SIM').width;
+    x.save(); x.translate(tx,y); x.transform(1,0,SHEAR,1,0,0);
+    x.fillStyle=INK; x.fillText('FIGHT SIM',0,0); x.restore();
+    if(tag){ x.font='600 15px Barlow'; x.fillStyle=GREY; x.fillText(tag,tx+w+22,y-1); }
+  };
+
+  mark(34,96,'THE WHOLE CARD');
+  x.font=`${fit(x,EV.name.toUpperCase(),'Anton',W-M*2,44,20)}px Anton`;
+  x.fillStyle=INK; x.fillText(EV.name.toUpperCase(),M,168);
+  x.font='600 15px Barlow'; x.fillStyle=GREY;
+  x.fillText(`${rows.length} BOUTS · POSTERIOR PER FIGHT · LATEST CAREER STATE`,M,200);
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,222); x.lineTo(W-M,222); x.stroke();
+
+  const NW=250, BX=M+NW+18, BW=W-M*2-NW*2-36;
+  rows.forEach((r,i)=>{
+    const y=top+i*RH, cy=y+18;
+    if(r.declined){ x.fillStyle='#101014'; x.fillRect(M-14,y-6,W-M*2+28,RH-10); }
+    x.font='600 19px Barlow'; x.textAlign='right';
+    x.fillStyle=r.declined?'#b0b0b8':BL; x.fillText(r.a.toUpperCase(),M+NW,cy+6);
+    x.textAlign='left';
+    x.fillStyle=r.declined?'#b0b0b8':R; x.fillText(r.b.toUpperCase(),W-M-NW+36,cy+6);
+
+    // the bar. A refused fight is drawn flat grey on purpose — the eye should
+    // find the refusals before it finds anything else on this image.
+    const pw=Math.round(BW*r.p);
+    x.fillStyle='#141418'; x.fillRect(BX,cy-8,BW,16);
+    if(r.declined){
+      x.fillStyle='#26262e'; x.fillRect(BX,cy-8,BW,16);
+      x.fillStyle='#33333c'; x.fillRect(BX+BW/2-1,cy-12,2,24);
+    } else {
+      x.fillStyle=BL; x.fillRect(BX,cy-8,pw,16);
+      x.fillStyle=R;  x.fillRect(BX+pw,cy-8,BW-pw,16);
+    }
+    x.font='600 14px Barlow'; x.textAlign='center';
+    if(r.declined){
+      const t='REFUSED · NO EDGE';
+      x.font='600 13px Barlow'; const tw=x.measureText(t).width;
+      x.fillStyle='#f2f2f0'; x.fillRect(BX+BW/2-tw/2-11,cy-11,tw+22,22);
+      x.fillStyle='#0a0a0c'; x.fillText(t,BX+BW/2,cy+4);
+    } else {
+      x.fillStyle='#ffffff';
+      x.fillText(`${Math.round(r.conf*100)}%`,BX+(r.p>=.5?pw/2:pw+(BW-pw)/2),cy+5);
+    }
+    x.textAlign='left';
+    if(i<rows.length-1){
+      x.strokeStyle='#141419'; x.beginPath();
+      x.moveTo(M,y+RH-3); x.lineTo(W-M,y+RH-3); x.stroke();
+    }
+  });
+
+  // the refusal count is the headline, because it is the thing nobody else prints
+  const fy=top+rows.length*RH+34;
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,fy); x.lineTo(W-M,fy); x.stroke();
+  const big=`${EV.dec} OF ${rows.length}`;
+  x.font='46px Anton'; x.fillStyle=INK; x.fillText(big,M,fy+62);
+  const bw2=x.measureText(big).width;
+  x.font='600 20px Barlow'; x.fillStyle=GREY;
+  x.fillText('REFUSED — THE MODEL HAS NO EDGE ON THESE',M+bw2+20,fy+62);
+  x.font='600 15px Barlow'; x.fillStyle='#8e8e98';
+  x.fillText('BELOW 0.58 IT REALISED 52.0% ACROSS 3,404 HELD-OUT FIGHTS. THAT IS WHY IT DECLINES THEM.',M,fy+92);
+
+  x.strokeStyle='#1e1e24'; x.beginPath(); x.moveTo(M,H-112); x.lineTo(W-M,H-112); x.stroke();
+  mark(22,H-70,HOME.toUpperCase());
+  x.font='600 14px Barlow'; x.fillStyle=GREY;
+  x.fillText('UFCSTATS VIA THE GRECO1899 MIRROR · NOT AFFILIATED WITH UFC, ZUFFA OR TKO',M,H-46);
+  x.textAlign='right';
+  x.fillText('ROLLING-ORIGIN CV · BRIER 0.230 · 67.2% ON THE 60% IT CALLS',W-M,H-70);
+  x.fillText('NOT A PREDICTION. A DISTRIBUTION.',W-M,H-46);
+  x.textAlign='left';
+
+  const n=x.getImageData(0,0,c.width,c.height), d=n.data, cw=c.width;
+  for(let py=0;py<c.height;py+=2) for(let px=0;px<cw;px+=2){
+    const v=(Math.random()-0.5)*11;
+    for(let dy=0;dy<2;dy++) for(let dx=0;dx<2;dx++){
+      const i=((py+dy)*cw+(px+dx))*4; d[i]+=v; d[i+1]+=v; d[i+2]+=v;
+    }
+  }
+  x.putImageData(n,0,0);
+  return c;
+}
+
+/* The receipt. This is the half that makes the scorecard a commitment rather
+   than another prediction graphic: a timestamped, model-stamped record that
+   goes into the public ledger BEFORE the card, and gets graded after. */
+function receipt(){
+  return JSON.stringify({
+    event:EV.name,
+    stamped:new Date().toISOString(),
+    model:{features:M.cols.length,intercept:M.intercept,
+           validation:'rolling-origin 2018-2026',brier:0.230,
+           held_out_fights:3404,decline_below:0.58},
+    bouts:EV.rows.map(r=>({a:r.a,b:r.b,p_a:+r.p.toFixed(4),
+      confidence:+r.conf.toFixed(4),lean:r.declined?null:r.lean,
+      refused:r.declined,rollouts:{a:r.aw,b:r.bw},
+      weight_prior:+((r.prior||0).toFixed(2)),winner:null}))
+  },null,2);
+}
+
+$('event').onclick=()=>{ $('evpanel').classList.add('on'); $('ecard').focus(); };
+$('eclose').onclick=()=>$('evpanel').classList.remove('on');
+$('erun').onclick=runEvent;
+$('esave').onclick=async()=>{
+  if(!EV.rows.length) return;
+  await document.fonts.ready;
+  drawEvent().toBlob(bl=>{
+    const u=URL.createObjectURL(bl), a=document.createElement('a');
+    a.href=u; a.download=`fightsim-${EV.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-|-$/g,'')||'card'}.jpg`;
+    a.click(); URL.revokeObjectURL(u);
+    $('esaved').textContent=`SAVED · ${(bl.size/1024|0)} KB`;
+  },'image/jpeg',0.93);
+};
+$('ejson').onclick=async()=>{
+  if(!EV.rows.length) return;
+  try{ await navigator.clipboard.writeText(receipt()); $('esaved').textContent='RECEIPT COPIED — COMMIT IT BEFORE THE CARD'; }
+  catch(e){ $('esaved').textContent='CLIPBOARD BLOCKED'; }
+};
+
+/* ---------- the method screen ---------- */
+const seen=()=>{ try{ return localStorage.getItem('fightsim.method')==='1'; }catch(e){ return false; } };
+if(seen()) $('intro').classList.remove('on');
+$('ienter').onclick=()=>{
+  $('intro').classList.remove('on');
+  try{ localStorage.setItem('fightsim.method','1'); }catch(e){}
+  $('ia').focus();
+};
+$('method').onclick=()=>{ $('intro').classList.add('on'); $('ienter').focus(); };
+addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  // The event panel sits above the method screen, so it closes first.
+  if($('evpanel').classList.contains('on')) $('eclose').click();
+  else if($('intro').classList.contains('on')) $('ienter').click();
+});
+// 34 sorted columns x 8,880 states — built while the method screen is being read,
+// so the first run never pays for it
+setTimeout(()=>{ try{ pctTables(); }catch(e){} },400);
+
+$('again').onclick=()=>{
+  if(SIM.raf){ cancelAnimationFrame(SIM.raf); SIM.raf=0; }   // the sim owns a RAF now, not an interval
+  SIM.done=null;
+  $('stage').classList.remove('on','settled'); $('verdict').classList.remove('on');
+  SPA.style.width='0'; SPB.style.width='0';
+  $('empanel').style.display=''; $('ia').value=''; $('ib').value='';
+  check();                                        // clears the tape and the pickers too
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+</script>
+</body>
+</html>

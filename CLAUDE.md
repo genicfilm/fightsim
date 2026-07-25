@@ -1,0 +1,34 @@
+# CLAUDE.md
+
+See **[AGENTS.md](AGENTS.md)** — the working contract for this repo: build and
+test commands, the boundary between UI and model, the DOM contract, the
+invariants the suite enforces, the numbers the UI is allowed to print, and the
+palette rationale.
+
+Deep documentation of the model itself is in **[fightsim/README.md](fightsim/README.md)**.
+
+Quick reference:
+
+```bash
+npm run build:fightsim   # fightsim/index.html + data.json + fonts -> FightSim.html
+npm test                 # 58 assertions over file:// — must be green before you ship
+npm run shots            # 8 screens vs tools/baseline/ — catches what npm test cannot
+node tools/ledger.mjs    # grade ledger/*.json -> ledger/README.md
+```
+
+Edit `fightsim/index.html`, never `fightsim/FightSim.html` (generated).
+
+**Run both suites from WSL bash, never from Windows.** `tools/chromium-path.mjs`
+falls back to system Chrome/Edge there, which rasterises through DirectWrite
+instead of the Playwright binary's FreeType — every screen goes red for no real
+reason, and `shots:update` on that run corrupts the committed baselines.
+
+**No figure may appear on screen that `tools/build-data.py` does not print.** It
+writes `tools/metrics.txt`; the block labelled *THE NUMBERS THE UI IS ALLOWED TO
+PRINT* is the source of truth, and `npm test` asserts both that every published
+figure is still present and that no retired one has come back. Two numbers were
+published for months that the pipeline never computed — that is the failure this
+guard exists to prevent.
+
+**Never make a claim about a competitor.** State the mechanism, never the
+accusation.

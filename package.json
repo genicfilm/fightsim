@@ -1,0 +1,19 @@
+{
+  "name": "fightsim",
+  "version": "0.2.0",
+  "private": true,
+  "description": "FIGHT SIM \u2014 1,000 Monte Carlo rollouts per UFC matchup, from public fight data.",
+  "type": "module",
+  "scripts": {
+    "build:fightsim": "node tools/build-fightsim.mjs",
+    "test": "node tools/test.mjs",
+    "shots": "node tools/shots.mjs",
+    "shots:update": "node tools/shots.mjs --update"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

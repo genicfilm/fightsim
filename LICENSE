@@ -1,0 +1,40 @@
+MIT License
+
+Copyright (c) 2026 FIGHT SIM
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------------
+NOTICE — data provenance
+
+The licence above covers the code in this repository. It makes no claim over the
+underlying fight statistics, which are not this project's to license.
+
+Those statistics originate from UFCStats.com and are read via the public
+community mirror Greco1899/scrape_ufc_stats (GPL-3.0). This project does not
+scrape, contact, or otherwise access UFC systems; the pipeline reads the mirror's
+published CSVs only. What ships in fightsim/data.json is derived — rolling and
+recency-weighted averages, Elo, form, layoff and age features — rather than a
+reproduction of the source tape.
+
+Not affiliated with, endorsed by, or sponsored by the UFC, Zuffa LLC or TKO
+Group. All fighter names and event names are the property of their respective
+owners and appear here as statements of fact about publicly reported results.
+
+If you are the rights holder and want something changed, open an issue.
